@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Revenue Forecast CRM - Preview</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; color: #102033; background: #eef3f8; }
+      header { position: sticky; top: 0; z-index: 5; background: rgba(255,255,255,.94); border-bottom: 1px solid #d8e0ea; backdrop-filter: blur(10px); }
+      .wrap { max-width: 1800px; margin: 0 auto; padding: 16px 20px; }
+      .header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      h1 { margin: 0; font-size: 26px; color: #08111f; }
+      p { margin: 0; }
+      button, input, select { font: inherit; }
+      .subtitle { margin-top: 4px; color: #64748b; font-size: 14px; }
+      .btn { border: 0; border-radius: 8px; background: #08111f; color: white; font-weight: 800; padding: 12px 16px; cursor: pointer; }
+      .header-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+      .mode { background: #f1f5f9; border-radius: 999px; color: #475569; font-size: 12px; font-weight: 900; padding: 10px 12px; }
+      .metrics { display: grid; grid-template-columns: repeat(6, minmax(150px, 1fr)); gap: 12px; padding-top: 18px; }
+      .metric { min-height: 132px; border-radius: 8px; color: white; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 16px 40px rgba(15,23,42,.08); }
+      .metric span { font-size: 13px; opacity: .86; font-weight: 700; }
+      .metric strong { font-size: 25px; line-height: 1; }
+      .metric small { opacity: .8; font-weight: 700; }
+      .bg1 { background: #0284c7; } .bg2 { background: #059669; } .bg3 { background: #e11d48; } .bg4 { background: #7c3aed; } .bg5 { background: #1e293b; } .bg6 { background: #0891b2; } .bg7 { background: #15803d; } .bg8 { background: #d97706; } .bg9 { background: #4f46e5; } .bg10 { background: #0f766e; } .bg11 { background: #ea580c; } .bg12 { background: #65a30d; } .bg13 { background: #b91c1c; } .bg14 { background: #1d4ed8; } .bg15 { background: #a21caf; } .bg16 { background: #c2410c; } .bg17 { background: #334155; } .bg18 { background: #047857; }
+      .filters { display: grid; grid-template-columns: 1fr 220px 240px; gap: 12px; background: white; border: 1px solid #d8e0ea; border-radius: 8px; padding: 12px; box-shadow: 0 16px 40px rgba(15,23,42,.06); }
+      .filters input, .filters select { height: 44px; border: 1px solid #d8e0ea; background: #f8fafc; border-radius: 8px; padding: 0 12px; outline: none; }
+      .board { display: flex; gap: 14px; overflow-x: auto; padding: 18px 20px 28px; max-width: 1800px; margin: 0 auto; }
+      .column { min-width: 310px; width: 310px; background: rgba(241,245,249,.9); border: 1px solid #d8e0ea; border-radius: 8px; padding: 12px; min-height: 430px; }
+      .col-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+      .col-title { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: 14px; }
+      .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--c); }
+      .col-meta { margin-top: 5px; color: #64748b; font-size: 12px; }
+      .count { background: white; border-radius: 8px; color: #475569; font-weight: 900; font-size: 12px; padding: 6px 8px; height: 28px; }
+      .card { background: white; border: 1px solid #d8e0ea; border-radius: 8px; padding: 12px; margin-bottom: 12px; cursor: grab; box-shadow: 0 2px 8px rgba(15,23,42,.04); }
+      .card:hover { box-shadow: 0 16px 34px rgba(15,23,42,.1); transform: translateY(-1px); }
+      .card.warning { border-color: #fdba74; box-shadow: 0 0 0 2px #ffedd5; }
+      .card.critical { border-color: #fca5a5; box-shadow: 0 0 0 2px #fee2e2; }
+      .card-top { display: flex; justify-content: space-between; gap: 8px; }
+      .client { font-weight: 900; color: #08111f; font-size: 14px; }
+      .opp { margin-top: 4px; color: #64748b; font-size: 12px; font-weight: 700; }
+      .badge { border-radius: 999px; padding: 5px 8px; font-size: 10px; text-transform: uppercase; font-weight: 900; height: 23px; white-space: nowrap; }
+      .alta { background: #fee2e2; color: #b91c1c; } .média { background: #fef3c7; color: #b45309; } .baixa { background: #f1f5f9; color: #475569; }
+      .value-row { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; }
+      .value-row strong { font-size: 16px; }
+      .prob { background: #f1f5f9; border-radius: 999px; padding: 5px 8px; color: #475569; font-weight: 900; font-size: 12px; }
+      .details { margin-top: 10px; color: #64748b; font-size: 12px; line-height: 1.7; }
+      .temp { display: inline-block; margin-top: 10px; border-radius: 999px; padding: 5px 8px; font-weight: 900; font-size: 12px; }
+      .frio { background: #dbeafe; color: #1d4ed8; } .morno { background: #ffedd5; color: #c2410c; } .quente { background: #fee2e2; color: #b91c1c; }
+      .modal { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 10; justify-content: flex-end; }
+      .drawer { width: min(680px, 100%); background: white; height: 100%; overflow: auto; padding: 22px; }
+      .modal.open { display: flex; }
+      .drawer-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+      .close { border: 1px solid #d8e0ea; background: white; border-radius: 8px; width: 40px; height: 40px; cursor: pointer; }
+      .hero { background: #08111f; color: white; border-radius: 8px; padding: 18px; margin-bottom: 14px; }
+      .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .info { background: #f8fafc; border: 1px solid #d8e0ea; border-radius: 8px; padding: 12px; }
+      .info small { color: #64748b; text-transform: uppercase; font-weight: 900; }
+      .info b { display: block; margin-top: 5px; }
+      .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      label small { display: block; margin-bottom: 5px; color: #64748b; text-transform: uppercase; font-weight: 900; font-size: 11px; }
+      form input, form select { width: 100%; height: 42px; border: 1px solid #d8e0ea; border-radius: 8px; padding: 0 10px; background: #f8fafc; }
+      .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+      .ghost { background: white; color: #475569; border: 1px solid #d8e0ea; }
+      footer { color: #64748b; font-size: 12px; padding-bottom: 28px; }
+      @media (max-width: 1100px) { .metrics { grid-template-columns: repeat(3, 1fr); } .filters { grid-template-columns: 1fr; } }
+      @media (max-width: 720px) { .metrics { grid-template-columns: repeat(2, 1fr); } .board { flex-direction: column; overflow-x: visible; } .column { width: 100%; min-width: 0; } .form-grid, .info-grid { grid-template-columns: 1fr; } h1 { font-size: 22px; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap header-row">
+        <div>
+          <h1>Revenue Forecast CRM</h1>
+          <p class="subtitle">Kanban executivo para previsibilidade, gargalos e conversão comercial.</p>
+        </div>
+        <div class="header-actions">
+          <span class="mode">Modo local</span>
+          <button class="btn ghost" onclick="exportCsv()">Exportar CSV</button>
+          <button class="btn" onclick="openCreate()">+ Nova oportunidade</button>
+        </div>
+      </div>
+    </header>
+    <section class="wrap">
+      <div id="metrics" class="metrics"></div>
+    </section>
+    <section class="wrap">
+      <div class="filters">
+        <input id="search" placeholder="Buscar cliente ou oportunidade" oninput="render()" />
+        <select id="seller" onchange="render()"></select>
+        <select id="stage" onchange="render()"></select>
+      </div>
+    </section>
+    <main id="board" class="board"></main>
+    <footer class="wrap">Preview standalone. O projeto React/TypeScript completo está nos arquivos em <code>src/</code>.</footer>
+    <div id="modal" class="modal"></div>
+    <script>
+      const stages = ["Prospecção","Lead Identificado","Contato Realizado","Reunião Agendada","Diagnóstico / Qualificação","Proposta Enviada","Negociação","Fechado - Ganhou","Fechado - Perdido"];
+      const colors = ["#0ea5e9","#06b6d4","#14b8a6","#10b981","#65a30d","#f59e0b","#f97316","#16a34a","#e11d48"];
+      const sellers = ["Paulo Penna","Luiz Garcia","Leonardo Sgrancio","Erik de Oliveira","Mykaela Moreira","Carlos Cesario"];
+      const storageKey = "crm-kanban-preview";
+      const base = [
+        ["Atlas Foods","Expansão CRM para canais","Paulo Penna",82000,"2026-04-03","2026-05-17","Enviar business case revisado",72,"outbound","Spears","Negociação","alta","quente"],
+        ["Nexo Energia","Plataforma de previsibilidade B2B","Luiz Garcia",146000,"2026-03-20","2026-05-04","Aguardar jurídico do cliente",68,"indicação","Seeds","Negociação","alta","quente"],
+        ["Boreal Tech","Licenças enterprise SDR","Leonardo Sgrancio",53000,"2026-05-01","2026-05-18","Marcar reunião técnica",42,"inbound","Nets","Diagnóstico / Qualificação","média","morno"],
+        ["Vitta Care","Automação de outbound","Erik de Oliveira",39000,"2026-04-22","2026-05-08","Confirmar decisores financeiros",35,"evento","Nets","Reunião Agendada","média","morno"],
+        ["Orion Logistics","Forecast nacional de vendas","Mykaela Moreira",118000,"2026-02-14","2026-04-30","Sem próxima ação definida",0,"parceiro","Spears","Fechado - Perdido","alta","frio"],
+        ["Mosaico Retail","Onboarding de time comercial","Carlos Cesario",76000,"2026-03-02","2026-05-14","Kickoff de implantação",100,"indicação","Seeds","Fechado - Ganhou","alta","quente"],
+        ["Cobalto Seguros","Pipeline para corretores","Paulo Penna",44000,"2026-04-28","2026-05-19","Enviar proposta comercial",54,"inbound","Nets","Proposta Enviada","média","quente"],
+        ["Hidrovale","CRM para expansão regional","Luiz Garcia",96000,"2026-04-15","2026-05-03","Retomar contato com sponsor",28,"outbound","Spears","Contato Realizado","alta","morno"],
+        ["Lumina Educação","Gestão de matrículas B2B","Leonardo Sgrancio",62000,"2026-05-06","2026-05-16","Realizar diagnóstico",38,"evento","Nets","Reunião Agendada","baixa","morno"],
+        ["PrimePay","Receita previsível para fintech","Erik de Oliveira",134000,"2026-03-12","2026-05-18","Reunião final com CFO",78,"parceiro","Spears","Negociação","alta","quente"],
+        ["Aster Máquinas","SDR outbound industrial","Mykaela Moreira",51000,"2026-05-10","2026-05-12","Validar ICP com marketing",18,"outbound","Spears","Lead Identificado","média","frio"],
+        ["Terra Nova Agro","Forecast por território","Carlos Cesario",88500,"2026-04-01","2026-05-01","Sem próxima ação definida",47,"inbound","Nets","Diagnóstico / Qualificação","alta","morno"],
+        ["Nimble HR","CRM para inside sales","Paulo Penna",42000,"2026-04-09","2026-05-09","Assinatura do contrato",100,"indicação","Seeds","Fechado - Ganhou","média","quente"],
+        ["Solare Energia","Gestão de propostas solares","Luiz Garcia",72000,"2026-05-03","2026-05-20","Mapear dores do gerente comercial",24,"inbound","Nets","Contato Realizado","baixa","morno"],
+        ["Kronos Jurídico","Funil para vendas consultivas","Leonardo Sgrancio",58000,"2026-05-12","2026-05-19","Qualificar orçamento",31,"evento","Nets","Reunião Agendada","média","morno"],
+        ["BlueMed","Plano enterprise hospitais","Erik de Oliveira",159000,"2026-02-25","2026-05-13","Confirmar data de implantação",100,"parceiro","Seeds","Fechado - Ganhou","alta","quente"],
+        ["Soma Contábil","Pacote CRM starter","Mykaela Moreira",18500,"2026-05-15","2026-05-17","Enviar convite de demo",16,"inbound","Nets","Lead Identificado","baixa","frio"],
+        ["Pulsar Telecom","Renovação e expansão seats","Carlos Cesario",103000,"2026-03-28","2026-05-15","Negociar prazo de pagamento",61,"indicação","Seeds","Proposta Enviada","alta","quente"],
+        ["Mira Construções","Funil de obras corporativas","Paulo Penna",67000,"2026-04-18","2026-05-02","Reagendar diagnóstico",22,"outbound","Spears","Contato Realizado","média","frio"],
+        ["Zenith Motors","CRM concessionárias premium","Luiz Garcia",126000,"2026-04-06","2026-05-11","Sem próxima ação definida",0,"evento","Nets","Fechado - Perdido","alta","frio"],
+        ["Avanti Farma","Mapeamento ICP farmácias","Leonardo Sgrancio",33000,"2026-05-18","2026-05-18","Primeiro contato com diretor",8,"outbound","Spears","Prospecção","baixa","frio"],
+        ["Domus Imóveis","CRM para captação de imóveis","Erik de Oliveira",47000,"2026-05-07","2026-05-10","Enviar material de ROI",20,"parceiro","Seeds","Lead Identificado","média","morno"],
+        ["Rubi Moda","Previsão para franquias","Mykaela Moreira",29000,"2026-05-11","2026-05-19","Qualificar volume de lojas",26,"inbound","Nets","Contato Realizado","baixa","morno"],
+        ["Cinza Cloud","Pipeline para vendas cloud","Carlos Cesario",112000,"2026-03-18","2026-05-06","Validar escopo de integrações",49,"outbound","Spears","Diagnóstico / Qualificação","alta","morno"],
+        ["Pacífico Travel","Gestão B2B turismo","Paulo Penna",61000,"2026-05-02","2026-05-18","Enviar proposta até sexta",57,"evento","Nets","Proposta Enviada","média","quente"],
+        ["Arco Design","CRM para contas estratégicas","Luiz Garcia",57500,"2026-04-11","2026-05-12","Alinhar proposta com CEO",63,"indicação","Seeds","Proposta Enviada","média","quente"],
+        ["Delta Labs","Playbook outbound SaaS","Leonardo Sgrancio",79000,"2026-03-08","2026-05-16","Enviar contrato",100,"outbound","Spears","Fechado - Ganhou","alta","quente"],
+        ["Elo Saúde","Funil corporativo regional","Erik de Oliveira",92000,"2026-04-26","2026-05-01","Sem próxima ação definida",12,"inbound","Nets","Prospecção","média","frio"],
+        ["Safira Capital","Forecast para wealth sales","Mykaela Moreira",151000,"2026-03-01","2026-05-05","Apresentar concessão final",74,"parceiro","Seeds","Negociação","alta","quente"],
+        ["Alfa Bebidas","CRM para distribuidores","Carlos Cesario",69000,"2026-04-05","2026-05-07","Sem próxima ação definida",0,"outbound","Spears","Fechado - Perdido","média","frio"]
+      ].map((x,i)=>({id:"opp-"+(i+1),clientName:x[0],opportunityName:x[1],seller:x[2],value:x[3],enteredAt:x[4],lastInteractionAt:x[5],nextStep:x[6],probability:x[7],source:x[8],leadType:x[9],stage:x[10],priority:x[11],temperature:x[12]}));
+      const legacySellerMap = { Paulo: "Paulo Penna", Mariana: "Luiz Garcia", Carlos: "Leonardo Sgrancio", Fernanda: "Erik de Oliveira", Rodrigo: "Mykaela Moreira" };
+      let opportunities = (JSON.parse(localStorage.getItem(storageKey) || "null") || base).map(o => ({ ...o, seller: legacySellerMap[o.seller] || o.seller }));
+      localStorage.setItem(storageKey, JSON.stringify(opportunities));
+      const brl = v => new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0}).format(v);
+      const days = d => Math.max(0, Math.round((new Date().setHours(0,0,0,0)-new Date(d+"T00:00:00").getTime())/86400000));
+      const save = () => localStorage.setItem(storageKey, JSON.stringify(opportunities));
+      function metrics() {
+        const open = opportunities.filter(o=>!o.stage.startsWith("Fechado"));
+        const won = opportunities.filter(o=>o.stage==="Fechado - Ganhou");
+        const lost = opportunities.filter(o=>o.stage==="Fechado - Perdido");
+        const closed = won.length + lost.length;
+        return {
+          openRevenue: open.reduce((s,o)=>s+o.value,0), wonRevenue: won.reduce((s,o)=>s+o.value,0), lostRevenue: lost.reduce((s,o)=>s+o.value,0),
+          forecast: open.reduce((s,o)=>s+o.value*o.probability/100,0), total: opportunities.length,
+          conversion: won.length/opportunities.length, ticket: won.reduce((s,o)=>s+o.value,0)/(won.length||1),
+          win: won.length/(closed||1), loss: lost.length/(closed||1), coverage: open.reduce((s,o)=>s+o.value,0)/850000,
+          noNext: open.filter(o=>o.nextStep.toLowerCase().includes("sem próxima ação")).length, stalled: open.filter(o=>days(o.lastInteractionAt)>7).length,
+          avgStall: Math.round(open.reduce((s,o)=>s+days(o.lastInteractionAt),0)/(open.length||1))
+        };
+      }
+      function renderMetrics() {
+        const m = metrics();
+        const topNegotiator = sellers.map(s=>({s,v:opportunities.filter(o=>o.seller===s&&o.stage==="Negociação").reduce((a,o)=>a+o.value,0)})).sort((a,b)=>b.v-a.v)[0];
+        const topWinner = sellers.map(s=>({s,c:opportunities.filter(o=>o.seller===s&&o.stage==="Fechado - Ganhou").length})).sort((a,b)=>b.c-a.c)[0];
+        const cards = [["Faturamento em aberto",brl(m.openRevenue),"Pipeline não fechado"],["Receita ganha",brl(m.wonRevenue),"Deals fechados"],["Receita perdida",brl(m.lostRevenue),"Valor perdido"],["Forecast ponderado",brl(m.forecast),"Valor x probabilidade"],["Total de oportunidades",m.total,"Base local"],["Clientes por etapa",Math.max(...stages.map(s=>opportunities.filter(o=>o.stage===s).length)),"Maior concentração"],["Conversão geral",Math.round(m.conversion*100)+"%","Ganhas sobre total"],["Conversão proposta","67%","Avanço pós-proposta"],["Ticket médio",brl(m.ticket),"Receita ganha / ganhos"],["Ciclo médio","52 dias","Entrada até fechamento"],["Parado médio",m.avgStall+" dias","Pipeline aberto"],["Win rate",Math.round(m.win*100)+"%","Ganhas / fechadas"],["Loss rate",Math.round(m.loss*100)+"%","Perdidas / fechadas"],["Pipeline coverage",m.coverage.toFixed(1)+"x","Meta R$ 850 mil"],["Sem próxima ação",m.noNext,"Abertas"],["Paradas +7 dias",m.stalled,"Exigem follow-up"],["Ranking negociação",brl(topNegotiator.v),topNegotiator.s],["Ranking ganhos",topWinner.s,topWinner.c+" oportunidades"]];
+        document.getElementById("metrics").innerHTML = cards.map((c,i)=>`<article class="metric bg${i+1}"><span>${c[0]}</span><strong>${c[1]}</strong><small>${c[2]}</small></article>`).join("");
+      }
+      function render() {
+        const sellerSelect = document.getElementById("seller"), stageSelect = document.getElementById("stage");
+        if (!sellerSelect.options.length) sellerSelect.innerHTML = '<option value="">Todos os vendedores</option>'+sellers.map(s=>`<option>${s}</option>`).join("");
+        if (!stageSelect.options.length) stageSelect.innerHTML = '<option value="">Todas as etapas</option>'+stages.map(s=>`<option>${s}</option>`).join("");
+        const seller = sellerSelect.value, stage = stageSelect.value, search = document.getElementById("search").value.toLowerCase();
+        const filtered = opportunities.filter(o=>(!seller||o.seller===seller)&&(!stage||o.stage===stage)&&(!search||o.clientName.toLowerCase().includes(search)||o.opportunityName.toLowerCase().includes(search)));
+        renderMetrics();
+        document.getElementById("board").innerHTML = stages.map((s,i)=>{
+          const list = filtered.filter(o=>o.stage===s), total = list.reduce((a,o)=>a+o.value,0);
+          return `<section class="column" ondragover="event.preventDefault()" ondrop="dropCard('${s}')"><div class="col-head"><div><div class="col-title"><span class="dot" style="--c:${colors[i]}"></span>${s}</div><div class="col-meta">${list.length} oportunidades · ${brl(total)}</div></div><span class="count">${list.length}</span></div>${list.map(card).join("")||'<div class="card" style="color:#94a3b8;text-align:center;cursor:default">Arraste oportunidades para cá</div>'}</section>`;
+        }).join("");
+      }
+      function card(o) {
+        const stalled = days(o.lastInteractionAt), cls = stalled>14?"critical":stalled>7?"warning":"";
+        return `<article class="card ${cls}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${o.id}')" onclick="openView('${o.id}')"><div class="card-top"><div><div class="client">${o.clientName}</div><div class="opp">${o.opportunityName}</div></div><span class="badge ${o.priority}">${o.priority}</span></div><div class="value-row"><strong>${brl(o.value)}</strong><span class="prob">${o.probability}%</span></div><div class="details">${o.seller} · ${o.source} · ${o.leadType}<br>Última interação há ${stalled} dias<br>${o.nextStep}</div><span class="temp ${o.temperature}">${o.temperature}</span></article>`;
+      }
+      function dropCard(stage) {
+        const id = event.dataTransfer.getData("text/plain");
+        opportunities = opportunities.map(o=>o.id===id?{...o,stage,probability:stage==="Fechado - Ganhou"?100:stage==="Fechado - Perdido"?0:o.probability,lastInteractionAt:new Date().toISOString().slice(0,10)}:o);
+        save(); render();
+      }
+      function openView(id) {
+        const o = opportunities.find(x=>x.id===id);
+        document.getElementById("modal").className = "modal open";
+        document.getElementById("modal").innerHTML = `<aside class="drawer"><div class="drawer-head"><div><small>${o.stage}</small><h1>${o.clientName}</h1></div><button class="close" onclick="closeModal()">×</button></div><div class="hero"><p>${o.opportunityName}</p><h1>${brl(o.value)}</h1><b>${o.probability}% forecast</b></div><div class="info-grid">${[["Vendedor",o.seller],["Prioridade",o.priority],["Origem",o.source],["Tipo de lead",o.leadType],["Temperatura",o.temperature],["Tempo parado",days(o.lastInteractionAt)+" dias"],["Entrada",o.enteredAt],["Última interação",o.lastInteractionAt],["Próximo passo",o.nextStep]].map(i=>`<div class="info"><small>${i[0]}</small><b>${i[1]}</b></div>`).join("")}</div><button class="btn" style="width:100%;margin-top:16px" onclick="openEdit('${o.id}')">Editar oportunidade</button></aside>`;
+      }
+      function openCreate() { openEdit(""); }
+      function openEdit(id) {
+        const o = opportunities.find(x=>x.id===id) || {id:"",clientName:"",opportunityName:"",seller:"Paulo Penna",value:50000,enteredAt:new Date().toISOString().slice(0,10),lastInteractionAt:new Date().toISOString().slice(0,10),nextStep:"Definir próxima ação comercial",probability:15,source:"outbound",leadType:"Spears",stage:"Prospecção",priority:"média",temperature:"morno"};
+        document.getElementById("modal").className = "modal open";
+        document.getElementById("modal").innerHTML = `<aside class="drawer"><div class="drawer-head"><h1>${id?"Editar":"Adicionar"} oportunidade</h1><button class="close" onclick="closeModal()">×</button></div><form onsubmit="saveForm(event,'${id}')"><div class="form-grid">${field("Cliente","clientName",o.clientName)}${field("Oportunidade","opportunityName",o.opportunityName)}${select("Vendedor","seller",sellers,o.seller)}${field("Valor","value",o.value,"number")}${field("Entrada","enteredAt",o.enteredAt,"date")}${field("Última interação","lastInteractionAt",o.lastInteractionAt,"date")}${select("Etapa","stage",stages,o.stage)}${field("Probabilidade","probability",o.probability,"number")}${select("Origem","source",["outbound","inbound","indicação","evento","parceiro"],o.source)}${select("Tipo","leadType",["Seeds","Nets","Spears"],o.leadType)}${select("Prioridade","priority",["baixa","média","alta"],o.priority)}${select("Temperatura","temperature",["frio","morno","quente"],o.temperature)}${field("Próximo passo","nextStep",o.nextStep)}</div><div class="actions"><button type="button" class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn">Salvar</button></div></form></aside>`;
+      }
+      function field(label,name,value,type="text"){ return `<label><small>${label}</small><input name="${name}" type="${type}" value="${String(value).replaceAll('"',"&quot;")}" required></label>`; }
+      function select(label,name,opts,value){ return `<label><small>${label}</small><select name="${name}">${opts.map(o=>`<option ${o===value?"selected":""}>${o}</option>`).join("")}</select></label>`; }
+      function saveForm(e,id) {
+        e.preventDefault(); const data = Object.fromEntries(new FormData(e.target).entries());
+        const item = {...data,id:id||"opp-"+crypto.randomUUID(),value:+data.value,probability:+data.probability};
+        opportunities = id ? opportunities.map(o=>o.id===id?item:o) : [item,...opportunities];
+        save(); closeModal(); render();
+      }
+      function exportCsv() {
+        const headers = ["Cliente","Oportunidade","Vendedor","Valor","Entrada no funil","Última interação","Próximo passo","Probabilidade","Origem","Tipo Receita Previsível","Etapa","Prioridade","Temperatura"];
+        const rows = opportunities.map(o=>[o.clientName,o.opportunityName,o.seller,o.value,o.enteredAt,o.lastInteractionAt,o.nextStep,o.probability,o.source,o.leadType,o.stage,o.priority,o.temperature]);
+        const csv = [headers,...rows].map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+        const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `crm-oportunidades-${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      function closeModal(){ document.getElementById("modal").className = "modal"; }
+      render();
+    </script>
+  </body>
+</html>
