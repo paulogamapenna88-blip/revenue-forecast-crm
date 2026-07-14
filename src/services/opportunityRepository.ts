@@ -1,4 +1,4 @@
-import { DEFAULT_SEGMENTS, DEFAULT_SERVICES, LEGACY_SELLER_MAP } from "../constants";
+import { DEFAULT_SEGMENTS, DEFAULT_SERVICES, DEFAULT_SELLERS, LEGACY_SELLER_MAP } from "../constants";
 import { mockOpportunities } from "../data/mockData";
 import type { Opportunity, OptionLists } from "../types";
 
@@ -50,6 +50,7 @@ export async function loadOptionLists(): Promise<OptionLists> {
     try {
       const rows = await supabaseRequest<SupabaseOption[]>("/rest/v1/crm_options?select=option_type,name&order=name.asc");
       return mergeOptionLists({
+        sellers: rows.filter((row) => row.option_type === "seller").map((row) => row.name),
         segments: rows.filter((row) => row.option_type === "segment").map((row) => row.name),
         services: rows.filter((row) => row.option_type === "service").map((row) => row.name),
       });
@@ -59,7 +60,7 @@ export async function loadOptionLists(): Promise<OptionLists> {
   }
 
   const stored = localStorage.getItem(OPTION_STORAGE_KEY);
-  return mergeOptionLists(stored ? JSON.parse(stored) : { segments: [], services: [] });
+  return mergeOptionLists(stored ? JSON.parse(stored) : { sellers: [], segments: [], services: [] });
 }
 
 export async function addOption(type: keyof OptionLists, name: string) {
@@ -67,15 +68,12 @@ export async function addOption(type: keyof OptionLists, name: string) {
   if (!normalized) return;
 
   if (isSupabaseConfigured) {
-    await supabaseRequest("/rest/v1/crm_options", {
+    await supabaseRequest("/rest/v1/crm_options?on_conflict=option_type,name", {
       method: "POST",
       headers: {
         Prefer: "resolution=ignore-duplicates",
       },
-      body: JSON.stringify({
-        option_type: type === "segments" ? "segment" : "service",
-        name: normalized,
-      }),
+      body: JSON.stringify(toSupabaseOption(type, normalized)),
     });
     return;
   }
@@ -84,6 +82,32 @@ export async function addOption(type: keyof OptionLists, name: string) {
   const next = mergeOptionLists({
     ...current,
     [type]: [...current[type], normalized],
+  });
+  localStorage.setItem(OPTION_STORAGE_KEY, JSON.stringify(next));
+}
+
+export async function deleteOption(type: keyof OptionLists, name: string) {
+  const normalized = name.trim();
+  if (!normalized) return;
+
+  if (isSupabaseConfigured) {
+    const optionType = optionListKeyToSupabaseType(type);
+    await supabaseRequest(
+      `/rest/v1/crm_options?option_type=eq.${encodeURIComponent(optionType)}&name=eq.${encodeURIComponent(normalized)}`,
+      {
+        method: "DELETE",
+        headers: {
+          Prefer: "return=minimal",
+        },
+      },
+    );
+    return;
+  }
+
+  const current = await loadOptionLists();
+  const next = mergeOptionLists({
+    ...current,
+    [type]: current[type].filter((option) => option !== normalized),
   });
   localStorage.setItem(OPTION_STORAGE_KEY, JSON.stringify(next));
 }
@@ -136,7 +160,7 @@ interface SupabaseOpportunity {
 }
 
 interface SupabaseOption {
-  option_type: "segment" | "service";
+  option_type: "seller" | "segment" | "service";
   name: string;
 }
 
@@ -197,9 +221,23 @@ function normalizeOpportunity(opportunity: Opportunity): Opportunity {
 
 function mergeOptionLists(optionLists: OptionLists): OptionLists {
   return {
-    segments: uniqueSorted([...DEFAULT_SEGMENTS, ...(optionLists.segments ?? [])]),
-    services: uniqueSorted([...DEFAULT_SERVICES, ...(optionLists.services ?? [])]),
+    sellers: uniqueSorted(optionLists.sellers?.length ? optionLists.sellers : DEFAULT_SELLERS),
+    segments: uniqueSorted(optionLists.segments?.length ? optionLists.segments : DEFAULT_SEGMENTS),
+    services: uniqueSorted(optionLists.services?.length ? optionLists.services : DEFAULT_SERVICES),
   };
+}
+
+function toSupabaseOption(type: keyof OptionLists, name: string): SupabaseOption {
+  return {
+    option_type: optionListKeyToSupabaseType(type),
+    name,
+  };
+}
+
+function optionListKeyToSupabaseType(type: keyof OptionLists): SupabaseOption["option_type"] {
+  if (type === "sellers") return "seller";
+  if (type === "segments") return "segment";
+  return "service";
 }
 
 function uniqueSorted(values: string[]) {

@@ -9,6 +9,7 @@ import { exportOpportunitiesCsv } from "./utils/exportCsv";
 import {
   isSupabaseConfigured,
   addOption,
+  deleteOption,
   loadOptionLists,
   loadOpportunities,
   persistOpportunities,
@@ -19,7 +20,7 @@ import { todayIso } from "./utils/metrics";
 
 function App() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-  const [optionLists, setOptionLists] = useState<OptionLists>({ segments: [], services: [] });
+  const [optionLists, setOptionLists] = useState<OptionLists>({ sellers: [], segments: [], services: [] });
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<Filters>({ seller: "", stage: "", segment: "", service: "", search: "" });
   const [selected, setSelected] = useState<Opportunity | null>(null);
@@ -59,6 +60,12 @@ function App() {
 
   async function handleAddOption(type: keyof OptionLists, name: string) {
     await addOption(type, name);
+    const nextOptions = await loadOptionLists();
+    setOptionLists(nextOptions);
+  }
+
+  async function handleDeleteOption(type: keyof OptionLists, name: string) {
+    await deleteOption(type, name);
     const nextOptions = await loadOptionLists();
     setOptionLists(nextOptions);
   }
@@ -143,6 +150,7 @@ function App() {
           onSave={handleSave}
           optionLists={optionLists}
           onAddOption={handleAddOption}
+          onDeleteOption={handleDeleteOption}
         />
       )}
     </div>

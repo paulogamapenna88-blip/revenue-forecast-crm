@@ -1,6 +1,6 @@
 import type { FunnelStage } from "./types";
 
-export const SELLERS = [
+export const DEFAULT_SELLERS = [
   "Paulo Penna",
   "Luiz Garcia",
   "Leonardo Sgrancio",
@@ -8,6 +8,8 @@ export const SELLERS = [
   "Mykaela Moreira",
   "Carlos Cesario",
 ];
+
+export const SELLERS = DEFAULT_SELLERS;
 
 export const LEGACY_SELLER_MAP: Record<string, string> = {
   Paulo: "Paulo Penna",

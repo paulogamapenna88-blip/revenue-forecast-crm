@@ -28,5 +28,16 @@ No cadastro ou edição de oportunidade:
 2. Escolha um **Serviço**.
 3. Se o item desejado não existir, clique em **Adicionar** ao lado do campo.
 4. Digite o novo valor e clique em **Incluir**.
+5. Para remover um item da lista suspensa, selecione o item e clique em **Excluir**.
 
 O novo item será salvo no Supabase e ficará disponível para todos os usuários.
+
+Importante: excluir um Segmento ou Serviço da lista não apaga cards existentes. Cards antigos continuam preservados com o valor salvo.
+
+## Migração complementar: vendedores editáveis
+
+Para permitir adicionar e excluir vendedores na lista suspensa, execute também o arquivo:
+
+`supabase.seller-options.sql`
+
+Ele amplia a tabela `crm_options` para aceitar o tipo `seller` e cadastra os vendedores atuais como opções iniciais.

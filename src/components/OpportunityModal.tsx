@@ -11,9 +11,19 @@ interface OpportunityModalProps {
   onSave: (opportunity: Opportunity) => void;
   optionLists: OptionLists;
   onAddOption: (type: keyof OptionLists, name: string) => Promise<void>;
+  onDeleteOption: (type: keyof OptionLists, name: string) => Promise<void>;
 }
 
-export function OpportunityModal({ opportunity, mode, onClose, onEdit, onSave, optionLists, onAddOption }: OpportunityModalProps) {
+export function OpportunityModal({
+  opportunity,
+  mode,
+  onClose,
+  onEdit,
+  onSave,
+  optionLists,
+  onAddOption,
+  onDeleteOption,
+}: OpportunityModalProps) {
   if (!opportunity && mode !== "create") {
     return null;
   }
@@ -87,6 +97,7 @@ export function OpportunityModal({ opportunity, mode, onClose, onEdit, onSave, o
             onCancel={onClose}
             optionLists={optionLists}
             onAddOption={onAddOption}
+            onDeleteOption={onDeleteOption}
           />
         )}
       </aside>

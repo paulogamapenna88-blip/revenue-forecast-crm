@@ -67,7 +67,7 @@ execute function public.set_updated_at();
 
 create table if not exists public.crm_options (
   id bigserial primary key,
-  option_type text not null check (option_type in ('segment', 'service')),
+  option_type text not null check (option_type in ('seller', 'segment', 'service')),
   name text not null,
   created_at timestamptz not null default now(),
   unique (option_type, name)

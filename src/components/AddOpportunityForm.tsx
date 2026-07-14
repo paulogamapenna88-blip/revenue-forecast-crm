@@ -1,7 +1,7 @@
 import { Save } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { FUNNEL_STAGES, SELLERS } from "../constants";
+import { FUNNEL_STAGES } from "../constants";
 import type { FunnelStage, LeadSource, LeadTemperature, Opportunity, OptionLists, PredictableRevenueLeadType, Priority } from "../types";
 import { todayIso } from "../utils/metrics";
 
@@ -11,6 +11,7 @@ interface AddOpportunityFormProps {
   onCancel: () => void;
   optionLists: OptionLists;
   onAddOption: (type: keyof OptionLists, name: string) => Promise<void>;
+  onDeleteOption: (type: keyof OptionLists, name: string) => Promise<void>;
 }
 
 const sources: LeadSource[] = ["outbound", "inbound", "indicação", "evento", "parceiro"];
@@ -18,7 +19,14 @@ const leadTypes: PredictableRevenueLeadType[] = ["Seeds", "Nets", "Spears"];
 const priorities: Priority[] = ["baixa", "média", "alta"];
 const temperatures: LeadTemperature[] = ["frio", "morno", "quente"];
 
-export function AddOpportunityForm({ initial, onSubmit, onCancel, optionLists, onAddOption }: AddOpportunityFormProps) {
+export function AddOpportunityForm({
+  initial,
+  onSubmit,
+  onCancel,
+  optionLists,
+  onAddOption,
+  onDeleteOption,
+}: AddOpportunityFormProps) {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -61,6 +69,7 @@ export function AddOpportunityForm({ initial, onSubmit, onCancel, optionLists, o
           defaultValue={initial?.segment ?? optionLists.segments[0] ?? "Não informado"}
           options={optionLists.segments}
           onAdd={(value) => onAddOption("segments", value)}
+          onDelete={(value) => onDeleteOption("segments", value)}
         />
         <ManagedSelect
           label="Serviço"
@@ -68,8 +77,16 @@ export function AddOpportunityForm({ initial, onSubmit, onCancel, optionLists, o
           defaultValue={initial?.service ?? optionLists.services[0] ?? "Não informado"}
           options={optionLists.services}
           onAdd={(value) => onAddOption("services", value)}
+          onDelete={(value) => onDeleteOption("services", value)}
         />
-        <Select label="Vendedor" name="seller" defaultValue={initial?.seller ?? SELLERS[0]} options={SELLERS} />
+        <ManagedSelect
+          label="Vendedor"
+          name="seller"
+          defaultValue={initial?.seller ?? optionLists.sellers[0] ?? "Não informado"}
+          options={optionLists.sellers}
+          onAdd={(value) => onAddOption("sellers", value)}
+          onDelete={(value) => onDeleteOption("sellers", value)}
+        />
         <Field label="Valor estimado" name="value" type="number" defaultValue={initial?.value ?? 50000} required />
         <Field label="Entrada no funil" name="enteredAt" type="date" defaultValue={initial?.enteredAt ?? todayIso()} required />
         <Field label="Última interação" name="lastInteractionAt" type="date" defaultValue={initial?.lastInteractionAt ?? todayIso()} required />
@@ -138,12 +155,14 @@ function ManagedSelect({
   defaultValue,
   options,
   onAdd,
+  onDelete,
 }: {
   label: string;
   name: string;
   defaultValue: string;
   options: string[];
   onAdd: (value: string) => Promise<void>;
+  onDelete?: (value: string) => Promise<void>;
 }) {
   const [value, setValue] = useState(defaultValue);
   const [newValue, setNewValue] = useState("");
@@ -159,10 +178,21 @@ function ManagedSelect({
     setIsAdding(false);
   }
 
+  async function handleDelete() {
+    if (!onDelete || !value) return;
+    const confirmed = window.confirm(
+      `Excluir "${value}" da lista de ${label.toLowerCase()}? Os cards existentes não serão apagados.`,
+    );
+    if (!confirmed) return;
+    await onDelete(value);
+    const fallback = currentOptions.find((option) => option !== value) ?? "";
+    setValue(fallback);
+  }
+
   return (
     <div className="block">
       <span className="mb-1 block text-xs font-bold uppercase tracking-normal text-slate-500">{label}</span>
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+      <div className={`grid gap-2 ${onDelete ? "sm:grid-cols-[1fr_auto_auto]" : "sm:grid-cols-[1fr_auto]"}`}>
         <select
           name={name}
           value={value}
@@ -182,6 +212,15 @@ function ManagedSelect({
         >
           Adicionar
         </button>
+        {onDelete ? (
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600"
+          >
+            Excluir
+          </button>
+        ) : null}
       </div>
       {isAdding ? (
         <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">

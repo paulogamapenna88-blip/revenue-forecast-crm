@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { FUNNEL_STAGES, SELLERS } from "../constants";
+import { FUNNEL_STAGES } from "../constants";
 import type { Filters, OptionLists } from "../types";
 
 interface FiltersBarProps {
@@ -27,7 +27,7 @@ export function FiltersBar({ filters, onChange, optionLists }: FiltersBarProps) 
           className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-500 focus:bg-white"
         >
           <option value="">Todos os vendedores</option>
-          {SELLERS.map((seller) => (
+          {optionLists.sellers.map((seller) => (
             <option key={seller} value={seller}>
               {seller}
             </option>

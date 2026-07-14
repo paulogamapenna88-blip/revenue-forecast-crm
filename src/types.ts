@@ -44,6 +44,7 @@ export interface Filters {
 }
 
 export interface OptionLists {
+  sellers: string[];
   segments: string[];
   services: string[];
 }
