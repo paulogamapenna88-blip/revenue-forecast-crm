@@ -1,5 +1,7 @@
-import { CalendarDays, Edit3, X } from "lucide-react";
-import type { Opportunity, OptionLists } from "../types";
+import { CalendarDays, Edit3, Trash2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { loadOpportunityHistory } from "../services/opportunityRepository";
+import type { CurrentUser, Opportunity, OpportunityHistory, OptionLists } from "../types";
 import { BRL, stalledDays } from "../utils/metrics";
 import { AddOpportunityForm } from "./AddOpportunityForm";
 
@@ -9,9 +11,12 @@ interface OpportunityModalProps {
   onClose: () => void;
   onEdit: () => void;
   onSave: (opportunity: Opportunity) => void;
+  onDelete: (opportunity: Opportunity) => void;
   optionLists: OptionLists;
   onAddOption: (type: keyof OptionLists, name: string) => Promise<void>;
   onDeleteOption: (type: keyof OptionLists, name: string) => Promise<void>;
+  currentUser: CurrentUser;
+  canEdit: boolean;
 }
 
 export function OpportunityModal({
@@ -20,10 +25,21 @@ export function OpportunityModal({
   onClose,
   onEdit,
   onSave,
+  onDelete,
   optionLists,
   onAddOption,
   onDeleteOption,
+  currentUser,
+  canEdit,
 }: OpportunityModalProps) {
+  const [history, setHistory] = useState<OpportunityHistory[]>([]);
+
+  useEffect(() => {
+    if (mode === "view" && opportunity) {
+      loadOpportunityHistory(opportunity.id).then(setHistory).catch(() => setHistory([]));
+    }
+  }, [mode, opportunity]);
+
   if (!opportunity && mode !== "create") {
     return null;
   }
@@ -54,6 +70,22 @@ export function OpportunityModal({
                 <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-bold">{opportunity.probability}% forecast</span>
               </div>
             </div>
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-normal text-slate-500">Movimentações registradas</p>
+              <div className="space-y-2">
+                {history.length ? (
+                  history.map((item) => (
+                    <p key={item.id} className="text-sm text-slate-600">
+                      <span className="font-semibold text-slate-800">{item.changedByName}</span> moveu de{" "}
+                      <span className="font-semibold">{item.fromStage || "sem etapa"}</span> para{" "}
+                      <span className="font-semibold">{item.toStage}</span> em {formatDateTime(item.changedAt)}
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-400">Nenhuma movimentação registrada ainda.</p>
+                )}
+              </div>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Info label="Vendedor" value={opportunity.seller} />
               <Info label="Segmento" value={opportunity.segment} />
@@ -82,13 +114,26 @@ export function OpportunityModal({
                 ))}
               </div>
             </div>
-            <button
-              onClick={onEdit}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
-            >
-              <Edit3 size={17} />
-              Editar oportunidade
-            </button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {canEdit ? (
+                <button
+                  onClick={onEdit}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
+                >
+                  <Edit3 size={17} />
+                  Editar oportunidade
+                </button>
+              ) : null}
+              {currentUser.role === "manager" ? (
+                <button
+                  onClick={() => onDelete(opportunity)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"
+                >
+                  <Trash2 size={17} />
+                  Excluir oportunidade
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : (
           <AddOpportunityForm
@@ -98,6 +143,7 @@ export function OpportunityModal({
             optionLists={optionLists}
             onAddOption={onAddOption}
             onDeleteOption={onDeleteOption}
+            currentUser={currentUser}
           />
         )}
       </aside>
@@ -116,4 +162,11 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function formatDate(value: string) {
   return value ? new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR") : "-";
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
 }

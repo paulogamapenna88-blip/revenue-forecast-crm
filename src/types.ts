@@ -35,6 +35,26 @@ export interface Opportunity {
   stageHistory: Partial<Record<FunnelStage, string>>;
 }
 
+export type UserRole = "manager" | "seller";
+
+export interface CurrentUser {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  sellerName: string;
+}
+
+export interface OpportunityHistory {
+  id: number;
+  opportunityId: string;
+  changedAt: string;
+  changedByName: string;
+  changedByEmail: string;
+  fromStage: FunnelStage | "";
+  toStage: FunnelStage;
+}
+
 export interface Filters {
   seller: string;
   stage: string;

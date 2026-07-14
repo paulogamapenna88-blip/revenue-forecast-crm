@@ -2,7 +2,7 @@ import { Save } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { FUNNEL_STAGES } from "../constants";
-import type { FunnelStage, LeadSource, LeadTemperature, Opportunity, OptionLists, PredictableRevenueLeadType, Priority } from "../types";
+import type { CurrentUser, FunnelStage, LeadSource, LeadTemperature, Opportunity, OptionLists, PredictableRevenueLeadType, Priority } from "../types";
 import { todayIso } from "../utils/metrics";
 
 interface AddOpportunityFormProps {
@@ -12,6 +12,7 @@ interface AddOpportunityFormProps {
   optionLists: OptionLists;
   onAddOption: (type: keyof OptionLists, name: string) => Promise<void>;
   onDeleteOption: (type: keyof OptionLists, name: string) => Promise<void>;
+  currentUser: CurrentUser;
 }
 
 const sources: LeadSource[] = ["outbound", "inbound", "indicação", "evento", "parceiro"];
@@ -26,6 +27,7 @@ export function AddOpportunityForm({
   optionLists,
   onAddOption,
   onDeleteOption,
+  currentUser,
 }: AddOpportunityFormProps) {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,14 +81,18 @@ export function AddOpportunityForm({
           onAdd={(value) => onAddOption("services", value)}
           onDelete={(value) => onDeleteOption("services", value)}
         />
-        <ManagedSelect
-          label="Vendedor"
-          name="seller"
-          defaultValue={initial?.seller ?? optionLists.sellers[0] ?? "Não informado"}
-          options={optionLists.sellers}
-          onAdd={(value) => onAddOption("sellers", value)}
-          onDelete={(value) => onDeleteOption("sellers", value)}
-        />
+        {currentUser.role === "manager" ? (
+          <ManagedSelect
+            label="Vendedor"
+            name="seller"
+            defaultValue={initial?.seller ?? optionLists.sellers[0] ?? "Não informado"}
+            options={optionLists.sellers}
+            onAdd={(value) => onAddOption("sellers", value)}
+            onDelete={(value) => onDeleteOption("sellers", value)}
+          />
+        ) : (
+          <Field label="Vendedor" name="seller" value={currentUser.sellerName} readOnly />
+        )}
         <Field label="Valor estimado" name="value" type="number" defaultValue={initial?.value ?? 50000} required />
         <Field label="Entrada no funil" name="enteredAt" type="date" defaultValue={initial?.enteredAt ?? todayIso()} required />
         <Field label="Última interação" name="lastInteractionAt" type="date" defaultValue={initial?.lastInteractionAt ?? todayIso()} required />

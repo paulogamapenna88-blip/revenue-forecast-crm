@@ -1,15 +1,64 @@
 import { DEFAULT_SEGMENTS, DEFAULT_SERVICES, DEFAULT_SELLERS, LEGACY_SELLER_MAP } from "../constants";
 import { mockOpportunities } from "../data/mockData";
-import type { Opportunity, OptionLists } from "../types";
+import type { CurrentUser, FunnelStage, Opportunity, OpportunityHistory, OptionLists, UserRole } from "../types";
 
 const STORAGE_KEY = "crm-kanban-opportunities";
 const OPTION_STORAGE_KEY = "crm-kanban-options";
+const AUTH_STORAGE_KEY = "crm-kanban-auth";
 
 const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const supabaseUrl = normalizeSupabaseUrl(rawSupabaseUrl);
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+let authSession: AuthSession | null = readStoredSession();
+
+export function getStoredSession() {
+  return authSession;
+}
+
+export async function signIn(email: string, password: string) {
+  const session = await authRequest<AuthSession>("/auth/v1/token?grant_type=password", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  authSession = session;
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  return session;
+}
+
+export function signOut() {
+  authSession = null;
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+export async function loadCurrentUser(): Promise<CurrentUser | null> {
+  if (!authSession) return null;
+  const authUser = await authRequest<AuthUser>("/auth/v1/user");
+  const rows = await supabaseRequest<SupabaseCrmUser[]>(`/rest/v1/crm_users?id=eq.${authUser.id}&select=*`);
+  if (rows[0]) return fromSupabaseUser(rows[0]);
+
+  const fallback: CurrentUser = {
+    id: authUser.id,
+    email: authUser.email,
+    name: authUser.email.split("@")[0],
+    role: "seller",
+    sellerName: authUser.email.split("@")[0],
+  };
+  await upsertCurrentUser(fallback);
+  return fallback;
+}
+
+export async function upsertCurrentUser(user: CurrentUser) {
+  await supabaseRequest("/rest/v1/crm_users?on_conflict=id", {
+    method: "POST",
+    headers: {
+      Prefer: "resolution=merge-duplicates",
+    },
+    body: JSON.stringify(toSupabaseUser(user)),
+  });
+}
 
 export async function loadOpportunities(): Promise<Opportunity[]> {
   if (isSupabaseConfigured) {
@@ -43,6 +92,46 @@ export async function upsertOpportunity(opportunity: Opportunity) {
     },
     body: JSON.stringify(toSupabase(opportunity)),
   });
+}
+
+export async function deleteOpportunity(id: string) {
+  if (!isSupabaseConfigured) return;
+  await supabaseRequest(`/rest/v1/opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: {
+      Prefer: "return=minimal",
+    },
+  });
+}
+
+export async function recordStageMove(
+  opportunityId: string,
+  fromStage: FunnelStage,
+  toStage: FunnelStage,
+  user: CurrentUser,
+) {
+  if (!isSupabaseConfigured) return;
+  await supabaseRequest("/rest/v1/opportunity_history", {
+    method: "POST",
+    body: JSON.stringify({
+      opportunity_id: opportunityId,
+      changed_by: user.id,
+      changed_by_name: user.name,
+      changed_by_email: user.email,
+      from_stage: fromStage,
+      to_stage: toStage,
+    }),
+  });
+}
+
+export async function loadOpportunityHistory(opportunityId: string): Promise<OpportunityHistory[]> {
+  if (!isSupabaseConfigured) return [];
+  const rows = await supabaseRequest<SupabaseOpportunityHistory[]>(
+    `/rest/v1/opportunity_history?opportunity_id=eq.${encodeURIComponent(
+      opportunityId,
+    )}&select=*&order=changed_at.desc`,
+  );
+  return rows.map(fromSupabaseHistory);
 }
 
 export async function loadOptionLists(): Promise<OptionLists> {
@@ -113,15 +202,28 @@ export async function deleteOption(type: keyof OptionLists, name: string) {
 }
 
 async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${supabaseUrl}${path}`, {
+  let response = await fetch(`${supabaseUrl}${path}`, {
     ...init,
     headers: {
       apikey: supabaseAnonKey ?? "",
-      Authorization: `Bearer ${supabaseAnonKey}`,
+      Authorization: `Bearer ${authSession?.access_token ?? supabaseAnonKey}`,
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },
   });
+
+  if (response.status === 401 && authSession?.refresh_token) {
+    await refreshSession();
+    response = await fetch(`${supabaseUrl}${path}`, {
+      ...init,
+      headers: {
+        apikey: supabaseAnonKey ?? "",
+        Authorization: `Bearer ${authSession?.access_token ?? supabaseAnonKey}`,
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
+    });
+  }
 
   if (!response.ok) {
     throw new Error(`Erro Supabase ${response.status}: ${await response.text()}`);
@@ -132,6 +234,58 @@ async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise
   }
 
   return response.json();
+}
+
+async function authRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  let response = await fetch(`${supabaseUrl}${path}`, {
+    ...init,
+    headers: {
+      apikey: supabaseAnonKey ?? "",
+      Authorization: `Bearer ${authSession?.access_token ?? supabaseAnonKey}`,
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
+  });
+
+  if (response.status === 401 && authSession?.refresh_token && !path.includes("grant_type=refresh_token")) {
+    await refreshSession();
+    response = await fetch(`${supabaseUrl}${path}`, {
+      ...init,
+      headers: {
+        apikey: supabaseAnonKey ?? "",
+        Authorization: `Bearer ${authSession?.access_token ?? supabaseAnonKey}`,
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
+    });
+  }
+
+  if (!response.ok) {
+    throw new Error(`Erro Auth ${response.status}: ${await response.text()}`);
+  }
+
+  return response.json();
+}
+
+async function refreshSession() {
+  if (!authSession?.refresh_token) return;
+  const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseAnonKey ?? "",
+      Authorization: `Bearer ${supabaseAnonKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ refresh_token: authSession.refresh_token }),
+  });
+
+  if (!response.ok) {
+    signOut();
+    throw new Error("Sessão expirada. Entre novamente.");
+  }
+
+  authSession = await response.json();
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authSession));
 }
 
 function normalizeSupabaseUrl(url?: string) {
@@ -164,6 +318,37 @@ interface SupabaseOption {
   name: string;
 }
 
+interface AuthSession {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  token_type: string;
+  user: AuthUser;
+}
+
+interface AuthUser {
+  id: string;
+  email: string;
+}
+
+interface SupabaseCrmUser {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  seller_name: string;
+}
+
+interface SupabaseOpportunityHistory {
+  id: number;
+  opportunity_id: string;
+  changed_at: string;
+  changed_by_name: string;
+  changed_by_email: string;
+  from_stage: FunnelStage | null;
+  to_stage: FunnelStage;
+}
+
 function fromSupabase(row: SupabaseOpportunity): Opportunity {
   return {
     id: row.id,
@@ -184,6 +369,38 @@ function fromSupabase(row: SupabaseOpportunity): Opportunity {
     temperature: row.temperature,
     closedAt: row.closed_at,
     stageHistory: row.stage_history,
+  };
+}
+
+function fromSupabaseUser(row: SupabaseCrmUser): CurrentUser {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    sellerName: row.seller_name,
+  };
+}
+
+function toSupabaseUser(user: CurrentUser): SupabaseCrmUser {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    seller_name: user.sellerName,
+  };
+}
+
+function fromSupabaseHistory(row: SupabaseOpportunityHistory): OpportunityHistory {
+  return {
+    id: row.id,
+    opportunityId: row.opportunity_id,
+    changedAt: row.changed_at,
+    changedByName: row.changed_by_name,
+    changedByEmail: row.changed_by_email,
+    fromStage: row.from_stage ?? "",
+    toStage: row.to_stage,
   };
 }
 
@@ -244,4 +461,13 @@ function uniqueSorted(values: string[]) {
   return [...new Set(values.filter(Boolean).map((value) => value.trim()))].sort((a, b) =>
     a.localeCompare(b, "pt-BR"),
   );
+}
+
+function readStoredSession(): AuthSession | null {
+  try {
+    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
 }
