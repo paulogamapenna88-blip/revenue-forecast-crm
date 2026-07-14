@@ -1,5 +1,5 @@
 import { CalendarDays, Edit3, X } from "lucide-react";
-import type { Opportunity } from "../types";
+import type { Opportunity, OptionLists } from "../types";
 import { BRL, stalledDays } from "../utils/metrics";
 import { AddOpportunityForm } from "./AddOpportunityForm";
 
@@ -9,9 +9,11 @@ interface OpportunityModalProps {
   onClose: () => void;
   onEdit: () => void;
   onSave: (opportunity: Opportunity) => void;
+  optionLists: OptionLists;
+  onAddOption: (type: keyof OptionLists, name: string) => Promise<void>;
 }
 
-export function OpportunityModal({ opportunity, mode, onClose, onEdit, onSave }: OpportunityModalProps) {
+export function OpportunityModal({ opportunity, mode, onClose, onEdit, onSave, optionLists, onAddOption }: OpportunityModalProps) {
   if (!opportunity && mode !== "create") {
     return null;
   }
@@ -44,6 +46,8 @@ export function OpportunityModal({ opportunity, mode, onClose, onEdit, onSave }:
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Info label="Vendedor" value={opportunity.seller} />
+              <Info label="Segmento" value={opportunity.segment} />
+              <Info label="Serviço" value={opportunity.service} />
               <Info label="Prioridade" value={opportunity.priority} />
               <Info label="Origem" value={opportunity.source} />
               <Info label="Tipo de lead" value={opportunity.leadType} />
@@ -77,7 +81,13 @@ export function OpportunityModal({ opportunity, mode, onClose, onEdit, onSave }:
             </button>
           </div>
         ) : (
-          <AddOpportunityForm initial={mode === "edit" ? opportunity : null} onSubmit={onSave} onCancel={onClose} />
+          <AddOpportunityForm
+            initial={mode === "edit" ? opportunity : null}
+            onSubmit={onSave}
+            onCancel={onClose}
+            optionLists={optionLists}
+            onAddOption={onAddOption}
+          />
         )}
       </aside>
     </div>

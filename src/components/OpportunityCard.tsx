@@ -36,6 +36,9 @@ export function OpportunityCard({ opportunity, onOpen, onDragStart }: Opportunit
         </span>
       </div>
       <div className="mt-3 space-y-2 text-xs text-slate-500">
+        <p className="rounded-md bg-slate-50 px-2 py-1 font-semibold text-slate-600">
+          {opportunity.segment} · {opportunity.service}
+        </p>
         <p className="flex items-center gap-2">
           <UserRound size={14} />
           {opportunity.seller} · {opportunity.source} · {opportunity.leadType}

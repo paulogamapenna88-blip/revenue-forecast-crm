@@ -3,6 +3,8 @@ import type { Opportunity } from "../types";
 const headers = [
   "Cliente",
   "Oportunidade",
+  "Segmento",
+  "Serviço",
   "Vendedor",
   "Valor",
   "Entrada no funil",
@@ -21,6 +23,8 @@ export function exportOpportunitiesCsv(opportunities: Opportunity[]) {
   const rows = opportunities.map((opportunity) => [
     opportunity.clientName,
     opportunity.opportunityName,
+    opportunity.segment,
+    opportunity.service,
     opportunity.seller,
     opportunity.value,
     opportunity.enteredAt,

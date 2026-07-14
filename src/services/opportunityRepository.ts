@@ -1,8 +1,9 @@
-import { LEGACY_SELLER_MAP } from "../constants";
+import { DEFAULT_SEGMENTS, DEFAULT_SERVICES, LEGACY_SELLER_MAP } from "../constants";
 import { mockOpportunities } from "../data/mockData";
-import type { Opportunity } from "../types";
+import type { Opportunity, OptionLists } from "../types";
 
 const STORAGE_KEY = "crm-kanban-opportunities";
+const OPTION_STORAGE_KEY = "crm-kanban-options";
 
 const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -14,14 +15,14 @@ export async function loadOpportunities(): Promise<Opportunity[]> {
   if (isSupabaseConfigured) {
     try {
       const rows = await supabaseRequest<SupabaseOpportunity[]>("/rest/v1/opportunities?select=*&order=created_at.desc");
-      return rows.map(fromSupabase).map(normalizeSeller);
+      return rows.map(fromSupabase).map(normalizeOpportunity);
     } catch (error) {
       console.warn("Supabase indisponível. Usando localStorage.", error);
     }
   }
 
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored).map(normalizeSeller) : mockOpportunities;
+  return stored ? JSON.parse(stored).map(normalizeOpportunity) : mockOpportunities;
 }
 
 export async function persistOpportunities(opportunities: Opportunity[]) {
@@ -42,6 +43,49 @@ export async function upsertOpportunity(opportunity: Opportunity) {
     },
     body: JSON.stringify(toSupabase(opportunity)),
   });
+}
+
+export async function loadOptionLists(): Promise<OptionLists> {
+  if (isSupabaseConfigured) {
+    try {
+      const rows = await supabaseRequest<SupabaseOption[]>("/rest/v1/crm_options?select=option_type,name&order=name.asc");
+      return mergeOptionLists({
+        segments: rows.filter((row) => row.option_type === "segment").map((row) => row.name),
+        services: rows.filter((row) => row.option_type === "service").map((row) => row.name),
+      });
+    } catch (error) {
+      console.warn("Opções do Supabase indisponíveis. Usando listas locais.", error);
+    }
+  }
+
+  const stored = localStorage.getItem(OPTION_STORAGE_KEY);
+  return mergeOptionLists(stored ? JSON.parse(stored) : { segments: [], services: [] });
+}
+
+export async function addOption(type: keyof OptionLists, name: string) {
+  const normalized = name.trim();
+  if (!normalized) return;
+
+  if (isSupabaseConfigured) {
+    await supabaseRequest("/rest/v1/crm_options", {
+      method: "POST",
+      headers: {
+        Prefer: "resolution=ignore-duplicates",
+      },
+      body: JSON.stringify({
+        option_type: type === "segments" ? "segment" : "service",
+        name: normalized,
+      }),
+    });
+    return;
+  }
+
+  const current = await loadOptionLists();
+  const next = mergeOptionLists({
+    ...current,
+    [type]: [...current[type], normalized],
+  });
+  localStorage.setItem(OPTION_STORAGE_KEY, JSON.stringify(next));
 }
 
 async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -74,6 +118,8 @@ interface SupabaseOpportunity {
   id: string;
   client_name: string;
   opportunity_name: string;
+  segment?: string;
+  service?: string;
   seller: string;
   value: number;
   entered_at: string;
@@ -89,11 +135,18 @@ interface SupabaseOpportunity {
   stage_history: Opportunity["stageHistory"];
 }
 
+interface SupabaseOption {
+  option_type: "segment" | "service";
+  name: string;
+}
+
 function fromSupabase(row: SupabaseOpportunity): Opportunity {
   return {
     id: row.id,
     clientName: row.client_name,
     opportunityName: row.opportunity_name,
+    segment: row.segment || "Não informado",
+    service: row.service || "Não informado",
     seller: row.seller,
     value: Number(row.value),
     enteredAt: row.entered_at,
@@ -115,6 +168,8 @@ function toSupabase(opportunity: Opportunity): SupabaseOpportunity {
     id: opportunity.id,
     client_name: opportunity.clientName,
     opportunity_name: opportunity.opportunityName,
+    segment: opportunity.segment,
+    service: opportunity.service,
     seller: opportunity.seller,
     value: opportunity.value,
     entered_at: opportunity.enteredAt,
@@ -131,9 +186,24 @@ function toSupabase(opportunity: Opportunity): SupabaseOpportunity {
   };
 }
 
-function normalizeSeller(opportunity: Opportunity): Opportunity {
+function normalizeOpportunity(opportunity: Opportunity): Opportunity {
   return {
     ...opportunity,
     seller: LEGACY_SELLER_MAP[opportunity.seller] ?? opportunity.seller,
+    segment: opportunity.segment || "Não informado",
+    service: opportunity.service || "Não informado",
   };
+}
+
+function mergeOptionLists(optionLists: OptionLists): OptionLists {
+  return {
+    segments: uniqueSorted([...DEFAULT_SEGMENTS, ...(optionLists.segments ?? [])]),
+    services: uniqueSorted([...DEFAULT_SERVICES, ...(optionLists.services ?? [])]),
+  };
+}
+
+function uniqueSorted(values: string[]) {
+  return [...new Set(values.filter(Boolean).map((value) => value.trim()))].sort((a, b) =>
+    a.localeCompare(b, "pt-BR"),
+  );
 }

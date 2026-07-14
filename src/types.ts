@@ -18,6 +18,8 @@ export interface Opportunity {
   id: string;
   clientName: string;
   opportunityName: string;
+  segment: string;
+  service: string;
   seller: string;
   value: number;
   enteredAt: string;
@@ -36,5 +38,12 @@ export interface Opportunity {
 export interface Filters {
   seller: string;
   stage: string;
+  segment: string;
+  service: string;
   search: string;
+}
+
+export interface OptionLists {
+  segments: string[];
+  services: string[];
 }

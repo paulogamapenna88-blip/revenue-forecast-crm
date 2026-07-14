@@ -19,6 +19,26 @@ export const LEGACY_SELLER_MAP: Record<string, string> = {
 
 export const COMMERCIAL_GOAL = 850000;
 
+export const DEFAULT_SEGMENTS = [
+  "Óleo e Gás",
+  "Portos e Terminais",
+  "Navegação",
+  "Indústria",
+  "Energia",
+  "Logística",
+  "Serviços Marítimos",
+];
+
+export const DEFAULT_SERVICES = [
+  "Agenciamento Marítimo",
+  "Apoio Portuário",
+  "Consultoria Operacional",
+  "Gestão de Projetos",
+  "Inspeção Técnica",
+  "Logística Integrada",
+  "Treinamento",
+];
+
 export const FUNNEL_STAGES: FunnelStage[] = [
   "Prospecção",
   "Lead Identificado",

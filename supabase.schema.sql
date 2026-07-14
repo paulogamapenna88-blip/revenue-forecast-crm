@@ -2,6 +2,8 @@ create table if not exists public.opportunities (
   id text primary key,
   client_name text not null,
   opportunity_name text not null,
+  segment text not null default 'Não informado',
+  service text not null default 'Não informado',
   seller text not null,
   value numeric not null default 0,
   entered_at date not null,
@@ -62,3 +64,38 @@ create trigger opportunities_set_updated_at
 before update on public.opportunities
 for each row
 execute function public.set_updated_at();
+
+create table if not exists public.crm_options (
+  id bigserial primary key,
+  option_type text not null check (option_type in ('segment', 'service')),
+  name text not null,
+  created_at timestamptz not null default now(),
+  unique (option_type, name)
+);
+
+alter table public.crm_options enable row level security;
+
+create policy "Allow authenticated read crm options"
+  on public.crm_options
+  for select
+  to authenticated
+  using (true);
+
+create policy "Allow authenticated insert crm options"
+  on public.crm_options
+  for insert
+  to authenticated
+  with check (true);
+
+create policy "Allow authenticated update crm options"
+  on public.crm_options
+  for update
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Allow authenticated delete crm options"
+  on public.crm_options
+  for delete
+  to authenticated
+  using (true);

@@ -19,6 +19,9 @@ export function Header({ onAdd, onExport, storageMode }: HeaderProps) {
             <p className="text-sm text-slate-500">
               Kanban executivo para previsibilidade, gargalos e conversão comercial.
             </p>
+            <p className="mt-1 text-xs font-semibold text-slate-400">
+              Desenvolvido por Paulo Penna - Atlantic Ocean Services 2026
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
