@@ -184,7 +184,7 @@ function App() {
         onSignOut={handleSignOut}
       />
       <DashboardMetrics opportunities={visibleOpportunities} />
-      <FiltersBar filters={filters} onChange={setFilters} optionLists={optionLists} />
+      <FiltersBar filters={filters} onChange={setFilters} optionLists={optionLists} currentUser={currentUser!} />
       <FunnelBoard
         opportunities={filteredOpportunities}
           onOpen={(opportunity) => {

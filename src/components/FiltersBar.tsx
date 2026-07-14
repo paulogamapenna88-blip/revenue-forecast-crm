@@ -1,14 +1,18 @@
 import { Search } from "lucide-react";
 import { FUNNEL_STAGES } from "../constants";
-import type { Filters, OptionLists } from "../types";
+import type { CurrentUser, Filters, OptionLists } from "../types";
 
 interface FiltersBarProps {
   filters: Filters;
   onChange: (filters: Filters) => void;
   optionLists: OptionLists;
+  currentUser: CurrentUser;
 }
 
-export function FiltersBar({ filters, onChange, optionLists }: FiltersBarProps) {
+export function FiltersBar({ filters, onChange, optionLists, currentUser }: FiltersBarProps) {
+  const isManager = currentUser.role === "manager";
+  const sellerOptions = isManager ? optionLists.sellers : [currentUser.sellerName];
+
   return (
     <section className="mx-auto max-w-[1800px] px-4 sm:px-6">
       <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-soft lg:grid-cols-[1fr_220px_240px_220px_220px]">
@@ -22,12 +26,13 @@ export function FiltersBar({ filters, onChange, optionLists }: FiltersBarProps) 
           />
         </label>
         <select
-          value={filters.seller}
+          value={isManager ? filters.seller : currentUser.sellerName}
           onChange={(event) => onChange({ ...filters, seller: event.target.value })}
+          disabled={!isManager}
           className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-500 focus:bg-white"
         >
-          <option value="">Todos os vendedores</option>
-          {optionLists.sellers.map((seller) => (
+          {isManager && <option value="">Todos os vendedores</option>}
+          {sellerOptions.map((seller) => (
             <option key={seller} value={seller}>
               {seller}
             </option>
