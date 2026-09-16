@@ -1,7 +1,8 @@
 import { CalendarDays, Edit3, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { BUSINESS_UNITS } from "../constants";
 import { loadOpportunityHistory } from "../services/opportunityRepository";
-import type { CurrentUser, Opportunity, OpportunityHistory, OptionLists } from "../types";
+import type { BusinessUnit, ClientDraft, ClientOption, CurrentUser, Opportunity, OpportunityHistory, OptionLists } from "../types";
 import { BRL, stalledDays } from "../utils/metrics";
 import { AddOpportunityForm } from "./AddOpportunityForm";
 
@@ -13,9 +14,11 @@ interface OpportunityModalProps {
   onSave: (opportunity: Opportunity) => void;
   onDelete: (opportunity: Opportunity) => void;
   optionLists: OptionLists;
-  onAddOption: (type: keyof OptionLists, name: string) => Promise<void>;
-  onDeleteOption: (type: keyof OptionLists, name: string) => Promise<void>;
+  onAddOption: (type: keyof OptionLists, name: string, segment?: Opportunity["segment"]) => Promise<void>;
+  onAddClient: (client: ClientDraft) => Promise<ClientOption>;
+  onDeleteOption: (type: keyof OptionLists, name: string, segment?: Opportunity["segment"]) => Promise<void>;
   currentUser: CurrentUser;
+  selectedBusinessUnit: BusinessUnit;
   canEdit: boolean;
 }
 
@@ -28,11 +31,14 @@ export function OpportunityModal({
   onDelete,
   optionLists,
   onAddOption,
+  onAddClient,
   onDeleteOption,
   currentUser,
+  selectedBusinessUnit,
   canEdit,
 }: OpportunityModalProps) {
   const [history, setHistory] = useState<OpportunityHistory[]>([]);
+  const isClosed = opportunity?.stage.startsWith("Fechado") ?? false;
 
   useEffect(() => {
     if (mode === "view" && opportunity) {
@@ -88,20 +94,26 @@ export function OpportunityModal({
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Info label="Vendedor" value={opportunity.seller} />
+              <Info label="Base operacional" value={businessUnitLabel(opportunity.businessUnit)} />
               <Info label="Segmento" value={opportunity.segment} />
               <Info label="Serviço" value={opportunity.service} />
               <Info label="Prioridade" value={opportunity.priority} />
               <Info label="Origem" value={opportunity.source} />
               <Info label="Tipo de lead" value={opportunity.leadType} />
               <Info label="Temperatura" value={opportunity.temperature} />
-              <Info label="Tempo parado" value={`${stalledDays(opportunity)} dias`} />
+              {!isClosed ? <Info label="Tempo parado" value={`${stalledDays(opportunity)} dias`} /> : null}
               <Info label="Entrada" value={formatDate(opportunity.enteredAt)} />
               <Info label="Última interação" value={formatDate(opportunity.lastInteractionAt)} />
+              {isClosed && opportunity.closedAt ? <Info label="Fechamento" value={formatDate(opportunity.closedAt)} /> : null}
+              {!isClosed ? <Info label="Próxima ação" value={opportunity.nextActionDate ? formatDate(opportunity.nextActionDate) : "-"} /> : null}
+              {opportunity.lossReason ? <Info label="Motivo da perda" value={opportunity.lossReason} /> : null}
             </div>
-            <div className="rounded-lg border border-slate-200 p-4">
-              <p className="text-xs font-bold uppercase tracking-normal text-slate-500">Próximo passo</p>
-              <p className="mt-2 text-sm text-slate-700">{opportunity.nextStep}</p>
-            </div>
+            {!isClosed ? (
+              <div className="rounded-lg border border-slate-200 p-4">
+                <p className="text-xs font-bold uppercase tracking-normal text-slate-500">Próximo passo</p>
+                <p className="mt-2 text-sm text-slate-700">{opportunity.nextStep}</p>
+              </div>
+            ) : null}
             <div className="rounded-lg border border-slate-200 p-4">
               <p className="mb-3 text-xs font-bold uppercase tracking-normal text-slate-500">Histórico do funil</p>
               <div className="space-y-2">
@@ -124,7 +136,7 @@ export function OpportunityModal({
                   Editar oportunidade
                 </button>
               ) : null}
-              {currentUser.role === "manager" ? (
+              {currentUser.role === "manager" || currentUser.role === "admin" ? (
                 <button
                   onClick={() => onDelete(opportunity)}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"
@@ -142,13 +154,19 @@ export function OpportunityModal({
             onCancel={onClose}
             optionLists={optionLists}
             onAddOption={onAddOption}
+            onAddClient={onAddClient}
             onDeleteOption={onDeleteOption}
             currentUser={currentUser}
+            selectedBusinessUnit={selectedBusinessUnit}
           />
         )}
       </aside>
     </div>
   );
+}
+
+function businessUnitLabel(value: BusinessUnit) {
+  return BUSINESS_UNITS.find((unit) => unit.id === value)?.label ?? value;
 }
 
 function Info({ label, value }: { label: string; value: string }) {

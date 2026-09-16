@@ -17,15 +17,18 @@ import {
 } from "lucide-react";
 import { FUNNEL_STAGES } from "../constants";
 import type { Opportunity } from "../types";
-import { BRL, calculateMetrics, numberFormat } from "../utils/metrics";
+import { BRL, calculateMetrics, calculateMonthlyMetrics, numberFormat } from "../utils/metrics";
 import { MetricCard } from "./MetricCard";
 
 interface DashboardMetricsProps {
   opportunities: Opportunity[];
+  selectedMonth: string;
+  onMonthChange: (month: string) => void;
 }
 
-export function DashboardMetrics({ opportunities }: DashboardMetricsProps) {
+export function DashboardMetrics({ opportunities, selectedMonth, onMonthChange }: DashboardMetricsProps) {
   const metrics = calculateMetrics(opportunities);
+  const monthly = calculateMonthlyMetrics(opportunities, selectedMonth);
   const topStage = Object.entries(metrics.stageCounts).sort((a, b) => b[1] - a[1])[0];
   const worstStall = Object.entries(metrics.stageStallAverage).sort((a, b) => b[1] - a[1])[0];
   const bestNegotiator = metrics.negotiationRanking[0];
@@ -109,7 +112,60 @@ export function DashboardMetrics({ opportunities }: DashboardMetricsProps) {
           </div>
         </div>
       </div>
+      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-normal text-slate-500">Dashboard de gestão mensal</h2>
+            <p className="mt-1 text-xs text-slate-500">Ganhos, perdas, ranking e pipeline da base operacional selecionada.</p>
+          </div>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(event) => onMonthChange(event.target.value)}
+            className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 outline-none focus:border-slate-500"
+          />
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <MiniMetric label="Ganhos do mês" value={`${monthly.wonCount} · ${BRL.format(monthly.wonRevenue)}`} tone="text-emerald-700" />
+          <MiniMetric label="Perdas do mês" value={`${monthly.lostCount} · ${BRL.format(monthly.lostRevenue)}`} tone="text-rose-700" />
+          <MiniMetric label="Win rate mensal" value={percent(monthly.winRate)} tone="text-lime-700" />
+          <MiniMetric
+            label="Top vendedor do mês"
+            value={monthly.sellerRanking[0]?.seller ?? "Sem ganhos"}
+            tone="text-slate-800"
+          />
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          <Ranking
+            title="Ranking por vendedor no mês"
+            data={monthly.sellerRanking.map((item): [string, string] => [
+              item.seller,
+              `${item.count} ganhos · ${BRL.format(item.value)}`,
+            ])}
+          />
+          <Ranking
+            title="Motivos de perda no mês"
+            data={monthly.lossReasonRanking.map((item): [string, string] => [item.reason, `${item.count} perdas`])}
+          />
+          <Ranking
+            title="Pipeline aberto por etapa"
+            data={Object.entries(monthly.pipelineByStage).map(([stage, data]): [string, string] => [
+              stage,
+              `${data?.count ?? 0} · ${BRL.format(data?.value ?? 0)}`,
+            ])}
+          />
+        </div>
+      </div>
     </section>
+  );
+}
+
+function MiniMetric({ label, value, tone }: { label: string; value: string; tone: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3">
+      <p className="text-xs font-bold uppercase tracking-normal text-slate-500">{label}</p>
+      <p className={`mt-2 text-lg font-bold ${tone}`}>{value}</p>
+    </div>
   );
 }
 

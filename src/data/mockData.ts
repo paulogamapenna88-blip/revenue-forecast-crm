@@ -1,6 +1,6 @@
-import type { Opportunity } from "../types";
+import type { BusinessUnit, Opportunity } from "../types";
 
-export const mockOpportunities: Opportunity[] = [
+const rawMockOpportunities: Omit<Opportunity, "businessUnit">[] = [
   {
     id: "opp-001",
     clientName: "Atlas Foods",
@@ -761,3 +761,12 @@ export const mockOpportunities: Opportunity[] = [
     },
   },
 ];
+
+export const mockOpportunities: Opportunity[] = rawMockOpportunities.map((opportunity, index) => ({
+  ...opportunity,
+  businessUnit: businessUnitForMock(index),
+}));
+
+function businessUnitForMock(index: number): BusinessUnit {
+  return index % 2 === 0 ? "freight_projects" : "maritime_port";
+}

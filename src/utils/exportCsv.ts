@@ -1,6 +1,8 @@
+import { BUSINESS_UNITS } from "../constants";
 import type { Opportunity } from "../types";
 
 const headers = [
+  "Base operacional",
   "Cliente",
   "Oportunidade",
   "Segmento",
@@ -10,17 +12,20 @@ const headers = [
   "Entrada no funil",
   "Última interação",
   "Próximo passo",
+  "Data da próxima ação",
   "Probabilidade",
   "Origem",
   "Tipo Receita Previsível",
   "Etapa",
   "Prioridade",
   "Temperatura",
+  "Motivo da perda",
   "Data de fechamento",
 ];
 
 export function exportOpportunitiesCsv(opportunities: Opportunity[]) {
   const rows = opportunities.map((opportunity) => [
+    businessUnitLabel(opportunity.businessUnit),
     opportunity.clientName,
     opportunity.opportunityName,
     opportunity.segment,
@@ -30,12 +35,14 @@ export function exportOpportunitiesCsv(opportunities: Opportunity[]) {
     opportunity.enteredAt,
     opportunity.lastInteractionAt,
     opportunity.nextStep,
+    opportunity.nextActionDate ?? "",
     opportunity.probability,
     opportunity.source,
     opportunity.leadType,
     opportunity.stage,
     opportunity.priority,
     opportunity.temperature,
+    opportunity.lossReason ?? "",
     opportunity.closedAt ?? "",
   ]);
 
@@ -47,6 +54,10 @@ export function exportOpportunitiesCsv(opportunities: Opportunity[]) {
   link.download = `crm-oportunidades-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function businessUnitLabel(value: Opportunity["businessUnit"]) {
+  return BUSINESS_UNITS.find((unit) => unit.id === value)?.label ?? value;
 }
 
 function escapeCsv(value: string | number) {

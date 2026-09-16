@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { FUNNEL_STAGES } from "../constants";
-import type { CurrentUser, Filters, OptionLists } from "../types";
+import type { CurrentUser, Filters, OptionLists, SalesSegment } from "../types";
 
 interface FiltersBarProps {
   filters: Filters;
@@ -10,8 +10,11 @@ interface FiltersBarProps {
 }
 
 export function FiltersBar({ filters, onChange, optionLists, currentUser }: FiltersBarProps) {
-  const isManager = currentUser.role === "manager";
+  const isManager = currentUser.role === "manager" || currentUser.role === "admin";
   const sellerOptions = isManager ? optionLists.sellers : [currentUser.sellerName];
+  const serviceOptions = filters.segment
+    ? optionLists.servicesBySegment[filters.segment as SalesSegment] ?? optionLists.services
+    : optionLists.services;
 
   return (
     <section className="mx-auto max-w-[1800px] px-4 sm:px-6">
@@ -68,7 +71,7 @@ export function FiltersBar({ filters, onChange, optionLists, currentUser }: Filt
           className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-500 focus:bg-white"
         >
           <option value="">Todos os serviços</option>
-          {optionLists.services.map((service) => (
+          {serviceOptions.map((service) => (
             <option key={service} value={service}>
               {service}
             </option>

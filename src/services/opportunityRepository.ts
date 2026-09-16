@@ -1,6 +1,6 @@
-import { DEFAULT_SEGMENTS, DEFAULT_SERVICES, DEFAULT_SELLERS, LEGACY_SELLER_MAP } from "../constants";
+import { BUSINESS_UNITS, DEFAULT_BUSINESS_UNIT, DEFAULT_SEGMENTS, DEFAULT_SERVICES_BY_SEGMENT, DEFAULT_SELLERS, LEGACY_SELLER_MAP } from "../constants";
 import { mockOpportunities } from "../data/mockData";
-import type { CurrentUser, FunnelStage, Opportunity, OpportunityHistory, OptionLists, UserRole } from "../types";
+import type { ClientDraft, ClientOption, CurrentUser, FunnelStage, Opportunity, OpportunityHistory, OptionLists, SalesSegment, UserRole } from "../types";
 
 const STORAGE_KEY = "crm-kanban-opportunities";
 const OPTION_STORAGE_KEY = "crm-kanban-options";
@@ -45,6 +45,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     name: authUser.email.split("@")[0],
     role: "seller",
     sellerName: authUser.email.split("@")[0],
+    allowedBusinessUnits: [DEFAULT_BUSINESS_UNIT],
   };
   await upsertCurrentUser(fallback);
   return fallback;
@@ -134,14 +135,68 @@ export async function loadOpportunityHistory(opportunityId: string): Promise<Opp
   return rows.map(fromSupabaseHistory);
 }
 
+export async function addClient(client: ClientDraft): Promise<ClientOption> {
+  const normalized = {
+    legalName: client.legalName.trim(),
+    tradeName: client.tradeName?.trim(),
+    taxId: client.taxId?.trim(),
+    focalPoint: client.focalPoint.trim(),
+    companyPhone: client.companyPhone.trim(),
+    contactEmail: client.contactEmail.trim(),
+    address: client.address?.trim(),
+    postalCode: client.postalCode?.trim(),
+    city: client.city?.trim(),
+    state: client.state?.trim(),
+    country: client.country?.trim() || "Brasil",
+    notes: client.notes?.trim(),
+  };
+
+  if (!normalized.legalName || !normalized.focalPoint || !normalized.companyPhone || !normalized.contactEmail) {
+    throw new Error("Cliente precisa ter razão social, ponto focal, telefone e e-mail.");
+  }
+
+  if (isSupabaseConfigured) {
+    const rows = await supabaseRequest<SupabaseClient[]>("/rest/v1/clients?on_conflict=legal_name&select=id,legal_name,trade_name", {
+      method: "POST",
+      headers: {
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(toSupabaseClient(normalized)),
+    });
+    return toClientOption(rows[0] ?? { id: normalized.legalName, legal_name: normalized.legalName, trade_name: normalized.tradeName });
+  }
+
+  const current = await loadOptionLists();
+  const displayName = normalized.tradeName || normalized.legalName;
+  const createdClient = {
+    id: displayName,
+    displayName,
+    legalName: normalized.legalName,
+  };
+  const next = mergeOptionLists({
+    ...current,
+    clients: [...current.clients, displayName],
+    clientOptions: [...current.clientOptions, createdClient],
+  });
+  localStorage.setItem(OPTION_STORAGE_KEY, JSON.stringify(next));
+  return createdClient;
+}
+
 export async function loadOptionLists(): Promise<OptionLists> {
   if (isSupabaseConfigured) {
     try {
-      const rows = await supabaseRequest<SupabaseOption[]>("/rest/v1/crm_options?select=option_type,name&order=name.asc");
+      const [rows, clients] = await Promise.all([
+        supabaseRequest<SupabaseOption[]>("/rest/v1/crm_options?select=option_type,name,segment&order=name.asc"),
+        supabaseRequest<SupabaseClient[]>("/rest/v1/clients?select=id,legal_name,trade_name&order=legal_name.asc"),
+      ]);
+      const clientOptions = clients.map(toClientOption);
       return mergeOptionLists({
+        clients: clientOptions.map((client) => client.displayName),
+        clientOptions,
         sellers: rows.filter((row) => row.option_type === "seller").map((row) => row.name),
-        segments: rows.filter((row) => row.option_type === "segment").map((row) => row.name),
+        segments: DEFAULT_SEGMENTS,
         services: rows.filter((row) => row.option_type === "service").map((row) => row.name),
+        servicesBySegment: serviceOptionsBySegment(rows),
       });
     } catch (error) {
       console.warn("Opções do Supabase indisponíveis. Usando listas locais.", error);
@@ -149,40 +204,78 @@ export async function loadOptionLists(): Promise<OptionLists> {
   }
 
   const stored = localStorage.getItem(OPTION_STORAGE_KEY);
-  return mergeOptionLists(stored ? JSON.parse(stored) : { sellers: [], segments: [], services: [] });
+  return mergeOptionLists(
+    stored
+      ? JSON.parse(stored)
+      : { clients: [], clientOptions: [], sellers: [], segments: [], services: [], servicesBySegment: DEFAULT_SERVICES_BY_SEGMENT },
+  );
 }
 
-export async function addOption(type: keyof OptionLists, name: string) {
+export async function addOption(type: keyof OptionLists, name: string, segment?: SalesSegment) {
   const normalized = name.trim();
   if (!normalized) return;
+  if (type === "segments" || type === "servicesBySegment") return;
 
   if (isSupabaseConfigured) {
-    await supabaseRequest("/rest/v1/crm_options?on_conflict=option_type,name", {
+    if (type === "clients") {
+      await supabaseRequest("/rest/v1/clients?on_conflict=legal_name", {
+        method: "POST",
+        headers: {
+          Prefer: "resolution=ignore-duplicates",
+        },
+        body: JSON.stringify({ legal_name: normalized, trade_name: normalized }),
+      });
+      return;
+    }
+
+    await supabaseRequest("/rest/v1/crm_options?on_conflict=option_type,name,segment", {
       method: "POST",
       headers: {
         Prefer: "resolution=ignore-duplicates",
       },
-      body: JSON.stringify(toSupabaseOption(type, normalized)),
+      body: JSON.stringify(toSupabaseOption(type, normalized, segment)),
     });
     return;
   }
 
   const current = await loadOptionLists();
-  const next = mergeOptionLists({
-    ...current,
-    [type]: [...current[type], normalized],
-  });
+  const next =
+    type === "services" && segment
+      ? mergeOptionLists({
+          ...current,
+          servicesBySegment: {
+            ...current.servicesBySegment,
+            [segment]: [...(current.servicesBySegment[segment] ?? []), normalized],
+          },
+          services: [...current.services, normalized],
+        })
+      : mergeOptionLists({
+          ...current,
+          [type]: [...(current[type] as string[]), normalized],
+        });
   localStorage.setItem(OPTION_STORAGE_KEY, JSON.stringify(next));
 }
 
-export async function deleteOption(type: keyof OptionLists, name: string) {
+export async function deleteOption(type: keyof OptionLists, name: string, segment?: SalesSegment) {
   const normalized = name.trim();
   if (!normalized) return;
+  if (type === "segments" || type === "servicesBySegment") return;
 
   if (isSupabaseConfigured) {
+    if (type === "clients") {
+      await supabaseRequest(`/rest/v1/clients?legal_name=eq.${encodeURIComponent(normalized)}`, {
+        method: "DELETE",
+        headers: {
+          Prefer: "return=minimal",
+        },
+      });
+      return;
+    }
+
     const optionType = optionListKeyToSupabaseType(type);
+    const segmentFilter = type === "services" && segment ? `&segment=eq.${encodeURIComponent(segment)}` : "";
     await supabaseRequest(
-      `/rest/v1/crm_options?option_type=eq.${encodeURIComponent(optionType)}&name=eq.${encodeURIComponent(normalized)}`,
+      `/rest/v1/crm_options?option_type=eq.${encodeURIComponent(optionType)}&name=eq.${encodeURIComponent(normalized)}${segmentFilter}`,
       {
         method: "DELETE",
         headers: {
@@ -194,10 +287,22 @@ export async function deleteOption(type: keyof OptionLists, name: string) {
   }
 
   const current = await loadOptionLists();
-  const next = mergeOptionLists({
-    ...current,
-    [type]: current[type].filter((option) => option !== normalized),
-  });
+  const next =
+    type === "services" && segment
+      ? mergeOptionLists({
+          ...current,
+          servicesBySegment: {
+            ...current.servicesBySegment,
+            [segment]: (current.servicesBySegment[segment] ?? []).filter((option) => option !== normalized),
+          },
+          services: Object.entries(current.servicesBySegment).flatMap(([key, values]) =>
+            key === segment ? values.filter((option) => option !== normalized) : values,
+          ),
+        })
+      : mergeOptionLists({
+          ...current,
+          [type]: (current[type] as string[]).filter((option) => option !== normalized),
+        });
   localStorage.setItem(OPTION_STORAGE_KEY, JSON.stringify(next));
 }
 
@@ -294,21 +399,25 @@ function normalizeSupabaseUrl(url?: string) {
 
 interface SupabaseOpportunity {
   id: string;
+  business_unit?: Opportunity["businessUnit"];
+  client_id?: string;
   client_name: string;
   opportunity_name: string;
-  segment?: string;
+  segment?: Opportunity["segment"] | string;
   service?: string;
   seller: string;
   value: number;
   entered_at: string;
   last_interaction_at: string;
   next_step: string;
+  next_action_date?: string;
   probability: number;
   source: Opportunity["source"];
   lead_type: Opportunity["leadType"];
   stage: Opportunity["stage"];
   priority: Opportunity["priority"];
   temperature: Opportunity["temperature"];
+  loss_reason?: Opportunity["lossReason"];
   closed_at?: string;
   stage_history: Opportunity["stageHistory"];
 }
@@ -316,6 +425,23 @@ interface SupabaseOpportunity {
 interface SupabaseOption {
   option_type: "seller" | "segment" | "service";
   name: string;
+  segment?: SalesSegment | "global" | null;
+}
+
+interface SupabaseClient {
+  id?: string;
+  legal_name: string;
+  trade_name?: string | null;
+  tax_id?: string | null;
+  focal_point?: string | null;
+  company_phone?: string | null;
+  contact_email?: string | null;
+  address?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  notes?: string | null;
 }
 
 interface AuthSession {
@@ -337,6 +463,7 @@ interface SupabaseCrmUser {
   name: string;
   role: UserRole;
   seller_name: string;
+  allowed_business_units?: Opportunity["businessUnit"][];
 }
 
 interface SupabaseOpportunityHistory {
@@ -352,21 +479,25 @@ interface SupabaseOpportunityHistory {
 function fromSupabase(row: SupabaseOpportunity): Opportunity {
   return {
     id: row.id,
+    businessUnit: normalizeBusinessUnit(row.business_unit),
+    clientId: row.client_id,
     clientName: row.client_name,
     opportunityName: row.opportunity_name,
-    segment: row.segment || "Não informado",
+    segment: normalizeSegment(row.segment),
     service: row.service || "Não informado",
     seller: row.seller,
     value: Number(row.value),
     enteredAt: row.entered_at,
     lastInteractionAt: row.last_interaction_at,
     nextStep: row.next_step,
+    nextActionDate: row.next_action_date,
     probability: row.probability,
     source: row.source,
     leadType: row.lead_type,
     stage: row.stage,
     priority: row.priority,
     temperature: row.temperature,
+    lossReason: row.loss_reason,
     closedAt: row.closed_at,
     stageHistory: row.stage_history,
   };
@@ -379,6 +510,7 @@ function fromSupabaseUser(row: SupabaseCrmUser): CurrentUser {
     name: row.name,
     role: row.role,
     sellerName: row.seller_name,
+    allowedBusinessUnits: normalizeAllowedBusinessUnits(row.allowed_business_units, row.role),
   };
 }
 
@@ -389,6 +521,7 @@ function toSupabaseUser(user: CurrentUser): SupabaseCrmUser {
     name: user.name,
     role: user.role,
     seller_name: user.sellerName,
+    allowed_business_units: normalizeAllowedBusinessUnits(user.allowedBusinessUnits, user.role),
   };
 }
 
@@ -407,47 +540,114 @@ function fromSupabaseHistory(row: SupabaseOpportunityHistory): OpportunityHistor
 function toSupabase(opportunity: Opportunity): SupabaseOpportunity {
   return {
     id: opportunity.id,
+    business_unit: opportunity.businessUnit,
+    client_id: opportunity.clientId,
     client_name: opportunity.clientName,
     opportunity_name: opportunity.opportunityName,
-    segment: opportunity.segment,
+    segment: normalizeSegment(opportunity.segment),
     service: opportunity.service,
     seller: opportunity.seller,
     value: opportunity.value,
     entered_at: opportunity.enteredAt,
     last_interaction_at: opportunity.lastInteractionAt,
     next_step: opportunity.nextStep,
+    next_action_date: opportunity.nextActionDate,
     probability: opportunity.probability,
     source: opportunity.source,
     lead_type: opportunity.leadType,
     stage: opportunity.stage,
     priority: opportunity.priority,
     temperature: opportunity.temperature,
+    loss_reason: opportunity.lossReason,
     closed_at: opportunity.closedAt,
     stage_history: opportunity.stageHistory,
+  };
+}
+
+function toSupabaseClient(client: ClientDraft): SupabaseClient {
+  return {
+    legal_name: client.legalName,
+    trade_name: client.tradeName || client.legalName,
+    tax_id: client.taxId,
+    focal_point: client.focalPoint,
+    company_phone: client.companyPhone,
+    contact_email: client.contactEmail,
+    address: client.address,
+    postal_code: client.postalCode,
+    city: client.city,
+    state: client.state,
+    country: client.country || "Brasil",
+    notes: client.notes,
   };
 }
 
 function normalizeOpportunity(opportunity: Opportunity): Opportunity {
   return {
     ...opportunity,
+    businessUnit: normalizeBusinessUnit(opportunity.businessUnit),
     seller: LEGACY_SELLER_MAP[opportunity.seller] ?? opportunity.seller,
-    segment: opportunity.segment || "Não informado",
+    segment: normalizeSegment(opportunity.segment),
     service: opportunity.service || "Não informado",
+    nextActionDate: opportunity.nextActionDate || opportunity.lastInteractionAt,
   };
+}
+
+function normalizeBusinessUnit(value?: string): Opportunity["businessUnit"] {
+  return BUSINESS_UNITS.some((unit) => unit.id === value) ? (value as Opportunity["businessUnit"]) : DEFAULT_BUSINESS_UNIT;
+}
+
+function normalizeAllowedBusinessUnits(
+  values: Opportunity["businessUnit"][] | undefined,
+  role: UserRole,
+): Opportunity["businessUnit"][] {
+  const fallback = role === "seller" ? [DEFAULT_BUSINESS_UNIT] : BUSINESS_UNITS.map((unit) => unit.id);
+  const normalized = (values?.length ? values : fallback)
+    .map((value) => normalizeBusinessUnit(value))
+    .filter(Boolean);
+  return [...new Set(normalized)];
 }
 
 function mergeOptionLists(optionLists: OptionLists): OptionLists {
+  const servicesBySegment = mergeServicesBySegment(optionLists.servicesBySegment);
+  const clientOptions = mergeClientOptions(optionLists);
   return {
+    clients: uniqueSorted(clientOptions.map((client) => client.displayName)),
+    clientOptions,
     sellers: uniqueSorted(optionLists.sellers?.length ? optionLists.sellers : DEFAULT_SELLERS),
-    segments: uniqueSorted(optionLists.segments?.length ? optionLists.segments : DEFAULT_SEGMENTS),
-    services: uniqueSorted(optionLists.services?.length ? optionLists.services : DEFAULT_SERVICES),
+    segments: DEFAULT_SEGMENTS,
+    services: uniqueSorted(Object.values(servicesBySegment).flat()),
+    servicesBySegment,
   };
 }
 
-function toSupabaseOption(type: keyof OptionLists, name: string): SupabaseOption {
+function mergeClientOptions(optionLists: OptionLists): ClientOption[] {
+  const sourceOptions =
+    optionLists.clientOptions?.length
+      ? optionLists.clientOptions
+      : (optionLists.clients?.length ? optionLists.clients : mockOpportunities.map((opportunity) => opportunity.clientName)).map(
+          (name) => ({ id: name, displayName: name, legalName: name }),
+        );
+  const byId = new Map<string, ClientOption>();
+  for (const option of sourceOptions) {
+    byId.set(option.id, option);
+  }
+  return [...byId.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, "pt-BR"));
+}
+
+function toClientOption(client: SupabaseClient): ClientOption {
+  const displayName = client.trade_name || client.legal_name;
+  return {
+    id: client.id ?? displayName,
+    displayName,
+    legalName: client.legal_name,
+  };
+}
+
+function toSupabaseOption(type: keyof OptionLists, name: string, segment?: SalesSegment): SupabaseOption {
   return {
     option_type: optionListKeyToSupabaseType(type),
     name,
+    segment: type === "services" ? segment ?? "Projetos" : "global",
   };
 }
 
@@ -455,6 +655,43 @@ function optionListKeyToSupabaseType(type: keyof OptionLists): SupabaseOption["o
   if (type === "sellers") return "seller";
   if (type === "segments") return "segment";
   return "service";
+}
+
+function serviceOptionsBySegment(rows: SupabaseOption[]): Record<SalesSegment, string[]> {
+  const services = rows.filter((row) => row.option_type === "service");
+  const grouped = { ...DEFAULT_SERVICES_BY_SEGMENT };
+  for (const service of services) {
+    const segment = normalizeSegment(service.segment ?? "");
+    grouped[segment] = [...(grouped[segment] ?? []), service.name];
+  }
+  return grouped;
+}
+
+function mergeServicesBySegment(values?: Partial<Record<SalesSegment, string[]>>): Record<SalesSegment, string[]> {
+  return DEFAULT_SEGMENTS.reduce(
+    (acc, segment) => {
+      acc[segment] = uniqueSorted([...(DEFAULT_SERVICES_BY_SEGMENT[segment] ?? []), ...(values?.[segment] ?? [])]);
+      return acc;
+    },
+    {} as Record<SalesSegment, string[]>,
+  );
+}
+
+function normalizeSegment(value?: string): Opportunity["segment"] {
+  if (DEFAULT_SEGMENTS.includes(value as Opportunity["segment"])) {
+    return value as Opportunity["segment"];
+  }
+  const normalized = value?.trim().toLowerCase() ?? "";
+  if (["portos e terminais", "serviços portuários", "apoio portuário"].includes(normalized)) {
+    return "Serviços Portuários";
+  }
+  if (["serviços marítimos", "navegação", "óleo e gás", "energia"].includes(normalized)) {
+    return "Serviços Marítimos";
+  }
+  if (["freight forwarder", "logística", "logistica"].includes(normalized)) {
+    return "Freight Forwarder";
+  }
+  return "Projetos";
 }
 
 function uniqueSorted(values: string[]) {

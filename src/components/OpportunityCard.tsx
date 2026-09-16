@@ -1,4 +1,5 @@
 import { CalendarClock, Flame, MoveRight, UserRound } from "lucide-react";
+import { BUSINESS_UNITS } from "../constants";
 import type { Opportunity } from "../types";
 import { BRL, stalledDays } from "../utils/metrics";
 
@@ -9,16 +10,19 @@ interface OpportunityCardProps {
 }
 
 export function OpportunityCard({ opportunity, onOpen, onDragStart }: OpportunityCardProps) {
+  const isClosed = opportunity.stage.startsWith("Fechado");
   const stalled = stalledDays(opportunity);
-  const isCritical = stalled > 14;
-  const isWarning = stalled > 7 && stalled <= 14;
+  const isCritical = !isClosed && stalled > 14;
+  const isWarning = !isClosed && stalled > 7 && stalled <= 14;
 
   return (
     <article
-      draggable
-      onDragStart={() => onDragStart(opportunity.id)}
+      draggable={!isClosed}
+      onDragStart={() => {
+        if (!isClosed) onDragStart(opportunity.id);
+      }}
       onClick={() => onOpen(opportunity)}
-      className={`cursor-grab rounded-lg border bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft active:cursor-grabbing ${
+      className={`${isClosed ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"} rounded-lg border bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft ${
         isCritical ? "border-red-300 ring-2 ring-red-100" : isWarning ? "border-orange-300 ring-2 ring-orange-100" : "border-slate-200"
       }`}
     >
@@ -39,18 +43,37 @@ export function OpportunityCard({ opportunity, onOpen, onDragStart }: Opportunit
         <p className="rounded-md bg-slate-50 px-2 py-1 font-semibold text-slate-600">
           {opportunity.segment} · {opportunity.service}
         </p>
+        <p className="rounded-md bg-cyan-50 px-2 py-1 font-semibold text-cyan-700">
+          {businessUnitShortLabel(opportunity.businessUnit)}
+        </p>
         <p className="flex items-center gap-2">
           <UserRound size={14} />
           {opportunity.seller} · {opportunity.source} · {opportunity.leadType}
         </p>
-        <p className="flex items-center gap-2">
-          <CalendarClock size={14} />
-          Última interação há {stalled} dias
-        </p>
-        <p className="flex items-center gap-2 text-slate-700">
-          <MoveRight size={14} />
-          {opportunity.nextStep}
-        </p>
+        {!isClosed ? (
+          <p className="flex items-center gap-2">
+            <CalendarClock size={14} />
+            Última interação há {stalled} dias
+          </p>
+        ) : null}
+        {!isClosed && opportunity.nextActionDate ? (
+          <p className={`flex items-center gap-2 ${isNextActionOverdue(opportunity.nextActionDate) ? "font-bold text-red-600" : ""}`}>
+            <CalendarClock size={14} />
+            Próxima ação: {formatDate(opportunity.nextActionDate)}
+          </p>
+        ) : null}
+        {isClosed && opportunity.closedAt ? (
+          <p className="flex items-center gap-2 font-semibold text-slate-600">
+            <CalendarClock size={14} />
+            Fechado em {formatDate(opportunity.closedAt)}
+          </p>
+        ) : null}
+        {!isClosed ? (
+          <p className="flex items-center gap-2 text-slate-700">
+            <MoveRight size={14} />
+            {opportunity.nextStep}
+          </p>
+        ) : null}
       </div>
       <div className="mt-3 flex items-center justify-between">
         <span className={temperatureClass(opportunity.temperature)}>
@@ -62,9 +85,26 @@ export function OpportunityCard({ opportunity, onOpen, onDragStart }: Opportunit
             parado
           </span>
         )}
+        {opportunity.lossReason ? (
+          <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
+            {opportunity.lossReason}
+          </span>
+        ) : null}
       </div>
     </article>
   );
+}
+
+function isNextActionOverdue(value: string) {
+  return value < new Date().toISOString().slice(0, 10);
+}
+
+function formatDate(value: string) {
+  return new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR");
+}
+
+function businessUnitShortLabel(value: Opportunity["businessUnit"]) {
+  return BUSINESS_UNITS.find((unit) => unit.id === value)?.shortLabel ?? value;
 }
 
 function priorityClass(priority: Opportunity["priority"]) {

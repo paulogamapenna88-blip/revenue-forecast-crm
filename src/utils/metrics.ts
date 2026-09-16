@@ -62,6 +62,10 @@ export function calculateMetrics(opportunities: Opportunity[]) {
   );
   const stageStallAverage = FUNNEL_STAGES.reduce(
     (acc, stage) => {
+      if (stage.startsWith("Fechado")) {
+        acc[stage] = 0;
+        return acc;
+      }
       const stageOps = opportunities.filter((opportunity) => opportunity.stage === stage);
       acc[stage] = stageOps.length
         ? stageOps.reduce((sum, opportunity) => sum + stalledDays(opportunity), 0) / stageOps.length
@@ -77,8 +81,8 @@ export function calculateMetrics(opportunities: Opportunity[]) {
     },
     {} as Partial<Record<FunnelStage, number>>,
   );
-  const withoutNextAction = open.filter((opportunity) =>
-    opportunity.nextStep.toLowerCase().includes("sem próxima ação"),
+  const withoutNextAction = open.filter(
+    (opportunity) => !opportunity.nextActionDate || opportunity.nextStep.toLowerCase().includes("sem próxima ação"),
   ).length;
   const stalledOverSeven = open.filter((opportunity) => stalledDays(opportunity) > 7).length;
   const negotiationRanking = rankBySeller(
@@ -106,6 +110,43 @@ export function calculateMetrics(opportunities: Opportunity[]) {
     stalledOverSeven,
     negotiationRanking,
     wonRanking,
+  };
+}
+
+export function calculateMonthlyMetrics(opportunities: Opportunity[], month: string) {
+  const closedInMonth = opportunities.filter((opportunity) => opportunity.closedAt?.startsWith(month));
+  const wonInMonth = closedInMonth.filter((opportunity) => opportunity.stage === "Fechado - Ganhou");
+  const lostInMonth = closedInMonth.filter((opportunity) => opportunity.stage === "Fechado - Perdido");
+  const open = opportunities.filter(isOpenOpportunity);
+  const pipelineByStage = OPEN_STAGES.reduce(
+    (acc, stage) => {
+      const stageOps = open.filter((opportunity) => opportunity.stage === stage);
+      acc[stage] = {
+        count: stageOps.length,
+        value: stageOps.reduce((sum, opportunity) => sum + opportunity.value, 0),
+      };
+      return acc;
+    },
+    {} as Partial<Record<FunnelStage, { count: number; value: number }>>,
+  );
+  const sellerRanking = rankWonBySeller(wonInMonth);
+  const lossReasonRanking = lostInMonth.reduce<Record<string, number>>((acc, opportunity) => {
+    const reason = opportunity.lossReason ?? "não informado";
+    acc[reason] = (acc[reason] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    wonCount: wonInMonth.length,
+    lostCount: lostInMonth.length,
+    wonRevenue: wonInMonth.reduce((sum, opportunity) => sum + opportunity.value, 0),
+    lostRevenue: lostInMonth.reduce((sum, opportunity) => sum + opportunity.value, 0),
+    winRate: closedInMonth.length ? wonInMonth.length / closedInMonth.length : 0,
+    sellerRanking,
+    pipelineByStage,
+    lossReasonRanking: Object.entries(lossReasonRanking)
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count),
   };
 }
 

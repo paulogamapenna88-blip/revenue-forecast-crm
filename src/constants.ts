@@ -1,4 +1,19 @@
-import type { FunnelStage } from "./types";
+import type { BusinessUnit, FunnelStage, LossReason, SalesSegment } from "./types";
+
+export const BUSINESS_UNITS: { id: BusinessUnit; label: string; shortLabel: string }[] = [
+  {
+    id: "freight_projects",
+    label: "Freight Forwarder e Projetos",
+    shortLabel: "Freight / Projetos",
+  },
+  {
+    id: "maritime_port",
+    label: "Serviços Marítimos e Portuários",
+    shortLabel: "Marítimo / Portuário",
+  },
+];
+
+export const DEFAULT_BUSINESS_UNIT: BusinessUnit = "freight_projects";
 
 export const DEFAULT_SELLERS = [
   "Paulo Penna",
@@ -21,25 +36,21 @@ export const LEGACY_SELLER_MAP: Record<string, string> = {
 
 export const COMMERCIAL_GOAL = 850000;
 
-export const DEFAULT_SEGMENTS = [
-  "Óleo e Gás",
-  "Portos e Terminais",
-  "Navegação",
-  "Indústria",
-  "Energia",
-  "Logística",
+export const DEFAULT_SEGMENTS: SalesSegment[] = [
+  "Serviços Portuários",
   "Serviços Marítimos",
+  "Freight Forwarder",
+  "Projetos",
 ];
 
-export const DEFAULT_SERVICES = [
-  "Agenciamento Marítimo",
-  "Apoio Portuário",
-  "Consultoria Operacional",
-  "Gestão de Projetos",
-  "Inspeção Técnica",
-  "Logística Integrada",
-  "Treinamento",
-];
+export const DEFAULT_SERVICES_BY_SEGMENT: Record<SalesSegment, string[]> = {
+  "Serviços Portuários": ["Apoio Portuário", "Operação Portuária", "Armazenagem", "Inspeção em Terminal"],
+  "Serviços Marítimos": ["Agenciamento Marítimo", "Consultoria Operacional", "Inspeção Técnica", "Apoio Marítimo"],
+  "Freight Forwarder": ["Frete Internacional", "Desembaraço Aduaneiro", "Logística Integrada", "Carga Projeto"],
+  "Projetos": ["Gestão de Projetos", "Treinamento", "Implantação Operacional", "Consultoria Especializada"],
+};
+
+export const DEFAULT_SERVICES = Object.values(DEFAULT_SERVICES_BY_SEGMENT).flat();
 
 export const FUNNEL_STAGES: FunnelStage[] = [
   "Prospecção",
@@ -54,6 +65,17 @@ export const FUNNEL_STAGES: FunnelStage[] = [
 ];
 
 export const OPEN_STAGES = FUNNEL_STAGES.filter((stage) => !stage.startsWith("Fechado"));
+
+export const LOSS_REASONS: LossReason[] = [
+  "preço",
+  "concorrência",
+  "timing",
+  "sem fit",
+  "sem oferta",
+  "desistência",
+  "prazo",
+  "outro",
+];
 
 export const STAGE_COLORS: Record<FunnelStage, string> = {
   "Prospecção": "bg-sky-500",
