@@ -1,6 +1,6 @@
 import { BUSINESS_UNITS, DEFAULT_BUSINESS_UNIT, DEFAULT_SEGMENTS, DEFAULT_SERVICES_BY_SEGMENT, DEFAULT_SELLERS, LEGACY_SELLER_MAP } from "../constants";
 import { mockOpportunities } from "../data/mockData";
-import type { ClientDraft, ClientOption, CurrentUser, FunnelStage, Opportunity, OpportunityHistory, OptionLists, SalesSegment, UserRole } from "../types";
+import type { ClientDraft, ClientOption, CurrentUser, FunnelStage, OfficialSalesSegment, Opportunity, OpportunityHistory, OptionLists, SalesSegment, UserRole } from "../types";
 
 const STORAGE_KEY = "crm-kanban-opportunities";
 const OPTION_STORAGE_KEY = "crm-kanban-options";
@@ -211,7 +211,7 @@ export async function loadOptionLists(): Promise<OptionLists> {
   );
 }
 
-export async function addOption(type: keyof OptionLists, name: string, segment?: SalesSegment) {
+export async function addOption(type: keyof OptionLists, name: string, segment?: OfficialSalesSegment) {
   const normalized = name.trim();
   if (!normalized) return;
   if (type === "segments" || type === "servicesBySegment") return;
@@ -256,7 +256,7 @@ export async function addOption(type: keyof OptionLists, name: string, segment?:
   localStorage.setItem(OPTION_STORAGE_KEY, JSON.stringify(next));
 }
 
-export async function deleteOption(type: keyof OptionLists, name: string, segment?: SalesSegment) {
+export async function deleteOption(type: keyof OptionLists, name: string, segment?: OfficialSalesSegment) {
   const normalized = name.trim();
   if (!normalized) return;
   if (type === "segments" || type === "servicesBySegment") return;
@@ -425,7 +425,7 @@ interface SupabaseOpportunity {
 interface SupabaseOption {
   option_type: "seller" | "segment" | "service";
   name: string;
-  segment?: SalesSegment | "global" | null;
+  segment?: OfficialSalesSegment | "global" | null;
 }
 
 interface SupabaseClient {
@@ -643,7 +643,7 @@ function toClientOption(client: SupabaseClient): ClientOption {
   };
 }
 
-function toSupabaseOption(type: keyof OptionLists, name: string, segment?: SalesSegment): SupabaseOption {
+function toSupabaseOption(type: keyof OptionLists, name: string, segment?: OfficialSalesSegment): SupabaseOption {
   return {
     option_type: optionListKeyToSupabaseType(type),
     name,
@@ -657,7 +657,7 @@ function optionListKeyToSupabaseType(type: keyof OptionLists): SupabaseOption["o
   return "service";
 }
 
-function serviceOptionsBySegment(rows: SupabaseOption[]): Record<SalesSegment, string[]> {
+function serviceOptionsBySegment(rows: SupabaseOption[]): Record<OfficialSalesSegment, string[]> {
   const services = rows.filter((row) => row.option_type === "service");
   const grouped = { ...DEFAULT_SERVICES_BY_SEGMENT };
   for (const service of services) {
@@ -667,19 +667,19 @@ function serviceOptionsBySegment(rows: SupabaseOption[]): Record<SalesSegment, s
   return grouped;
 }
 
-function mergeServicesBySegment(values?: Partial<Record<SalesSegment, string[]>>): Record<SalesSegment, string[]> {
+function mergeServicesBySegment(values?: Partial<Record<OfficialSalesSegment, string[]>>): Record<OfficialSalesSegment, string[]> {
   return DEFAULT_SEGMENTS.reduce(
     (acc, segment) => {
       acc[segment] = uniqueSorted([...(DEFAULT_SERVICES_BY_SEGMENT[segment] ?? []), ...(values?.[segment] ?? [])]);
       return acc;
     },
-    {} as Record<SalesSegment, string[]>,
+    {} as Record<OfficialSalesSegment, string[]>,
   );
 }
 
-function normalizeSegment(value?: string): Opportunity["segment"] {
-  if (DEFAULT_SEGMENTS.includes(value as Opportunity["segment"])) {
-    return value as Opportunity["segment"];
+function normalizeSegment(value?: string): OfficialSalesSegment {
+  if (DEFAULT_SEGMENTS.includes(value as OfficialSalesSegment)) {
+    return value as OfficialSalesSegment;
   }
   const normalized = value?.trim().toLowerCase() ?? "";
   if (["portos e terminais", "serviços portuários", "apoio portuário"].includes(normalized)) {

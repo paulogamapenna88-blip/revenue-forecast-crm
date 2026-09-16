@@ -1,4 +1,4 @@
-import type { BusinessUnit, FunnelStage, LossReason, SalesSegment } from "./types";
+import type { BusinessUnit, FunnelStage, LossReason, OfficialSalesSegment } from "./types";
 
 export const BUSINESS_UNITS: { id: BusinessUnit; label: string; shortLabel: string }[] = [
   {
@@ -36,14 +36,14 @@ export const LEGACY_SELLER_MAP: Record<string, string> = {
 
 export const COMMERCIAL_GOAL = 850000;
 
-export const DEFAULT_SEGMENTS: SalesSegment[] = [
+export const DEFAULT_SEGMENTS: OfficialSalesSegment[] = [
   "Serviços Portuários",
   "Serviços Marítimos",
   "Freight Forwarder",
   "Projetos",
 ];
 
-export const DEFAULT_SERVICES_BY_SEGMENT: Record<SalesSegment, string[]> = {
+export const DEFAULT_SERVICES_BY_SEGMENT: Record<OfficialSalesSegment, string[]> = {
   "Serviços Portuários": ["Apoio Portuário", "Operação Portuária", "Armazenagem", "Inspeção em Terminal"],
   "Serviços Marítimos": ["Agenciamento Marítimo", "Consultoria Operacional", "Inspeção Técnica", "Apoio Marítimo"],
   "Freight Forwarder": ["Frete Internacional", "Desembaraço Aduaneiro", "Logística Integrada", "Carga Projeto"],

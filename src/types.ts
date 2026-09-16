@@ -14,7 +14,16 @@ export type LeadSource = "outbound" | "inbound" | "indicação" | "evento" | "pa
 export type PredictableRevenueLeadType = "Seeds" | "Nets" | "Spears";
 export type LeadTemperature = "frio" | "morno" | "quente";
 export type BusinessUnit = "freight_projects" | "maritime_port";
-export type SalesSegment = "Serviços Portuários" | "Serviços Marítimos" | "Freight Forwarder" | "Projetos";
+export type OfficialSalesSegment = "Serviços Portuários" | "Serviços Marítimos" | "Freight Forwarder" | "Projetos";
+export type LegacySalesSegment =
+  | "Óleo e Gás"
+  | "Portos e Terminais"
+  | "Navegação"
+  | "Indústria"
+  | "Energia"
+  | "Logística"
+  | "Serviços Marítimos";
+export type SalesSegment = OfficialSalesSegment | LegacySalesSegment;
 export type LossReason = "preço" | "concorrência" | "timing" | "sem fit" | "sem oferta" | "desistência" | "prazo" | "outro";
 
 export interface Opportunity {
@@ -96,7 +105,7 @@ export interface OptionLists {
   clients: string[];
   clientOptions: ClientOption[];
   sellers: string[];
-  segments: string[];
+  segments: OfficialSalesSegment[];
   services: string[];
-  servicesBySegment: Record<SalesSegment, string[]>;
+  servicesBySegment: Record<OfficialSalesSegment, string[]>;
 }

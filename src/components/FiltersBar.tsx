@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { FUNNEL_STAGES } from "../constants";
-import type { CurrentUser, Filters, OptionLists, SalesSegment } from "../types";
+import type { CurrentUser, Filters, OfficialSalesSegment, OptionLists } from "../types";
 
 interface FiltersBarProps {
   filters: Filters;
@@ -13,7 +13,7 @@ export function FiltersBar({ filters, onChange, optionLists, currentUser }: Filt
   const isManager = currentUser.role === "manager" || currentUser.role === "admin";
   const sellerOptions = isManager ? optionLists.sellers : [currentUser.sellerName];
   const serviceOptions = filters.segment
-    ? optionLists.servicesBySegment[filters.segment as SalesSegment] ?? optionLists.services
+    ? optionLists.servicesBySegment[filters.segment as OfficialSalesSegment] ?? optionLists.services
     : optionLists.services;
 
   return (

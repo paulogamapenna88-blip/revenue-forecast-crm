@@ -2,7 +2,7 @@ import { CalendarDays, Edit3, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BUSINESS_UNITS } from "../constants";
 import { loadOpportunityHistory } from "../services/opportunityRepository";
-import type { BusinessUnit, ClientDraft, ClientOption, CurrentUser, Opportunity, OpportunityHistory, OptionLists } from "../types";
+import type { BusinessUnit, ClientDraft, ClientOption, CurrentUser, OfficialSalesSegment, Opportunity, OpportunityHistory, OptionLists } from "../types";
 import { BRL, stalledDays } from "../utils/metrics";
 import { AddOpportunityForm } from "./AddOpportunityForm";
 
@@ -14,9 +14,9 @@ interface OpportunityModalProps {
   onSave: (opportunity: Opportunity) => void;
   onDelete: (opportunity: Opportunity) => void;
   optionLists: OptionLists;
-  onAddOption: (type: keyof OptionLists, name: string, segment?: Opportunity["segment"]) => Promise<void>;
+  onAddOption: (type: keyof OptionLists, name: string, segment?: OfficialSalesSegment) => Promise<void>;
   onAddClient: (client: ClientDraft) => Promise<ClientOption>;
-  onDeleteOption: (type: keyof OptionLists, name: string, segment?: Opportunity["segment"]) => Promise<void>;
+  onDeleteOption: (type: keyof OptionLists, name: string, segment?: OfficialSalesSegment) => Promise<void>;
   currentUser: CurrentUser;
   selectedBusinessUnit: BusinessUnit;
   canEdit: boolean;

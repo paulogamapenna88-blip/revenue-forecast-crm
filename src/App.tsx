@@ -22,7 +22,7 @@ import {
   signOut,
   upsertOpportunity,
 } from "./services/opportunityRepository";
-import type { BusinessUnit, ClientDraft, ClientOption, CurrentUser, Filters, FunnelStage, Opportunity, OptionLists } from "./types";
+import type { BusinessUnit, ClientDraft, ClientOption, CurrentUser, Filters, FunnelStage, OfficialSalesSegment, Opportunity, OptionLists } from "./types";
 import { todayIso } from "./utils/metrics";
 
 function App() {
@@ -99,7 +99,7 @@ function App() {
     [filteredOpportunities, selectedMonth],
   );
 
-  async function handleAddOption(type: keyof OptionLists, name: string, segment?: Opportunity["segment"]) {
+  async function handleAddOption(type: keyof OptionLists, name: string, segment?: OfficialSalesSegment) {
     await addOption(type, name, segment);
     const nextOptions = await loadOptionLists();
     setOptionLists(nextOptions);
@@ -112,7 +112,7 @@ function App() {
     return createdClient;
   }
 
-  async function handleDeleteOption(type: keyof OptionLists, name: string, segment?: Opportunity["segment"]) {
+  async function handleDeleteOption(type: keyof OptionLists, name: string, segment?: OfficialSalesSegment) {
     await deleteOption(type, name, segment);
     const nextOptions = await loadOptionLists();
     setOptionLists(nextOptions);

@@ -2,7 +2,7 @@ import { Save } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { BUSINESS_UNITS, FUNNEL_STAGES, LOSS_REASONS } from "../constants";
-import type { BusinessUnit, ClientDraft, ClientOption, CurrentUser, FunnelStage, LeadSource, LeadTemperature, LossReason, Opportunity, OptionLists, PredictableRevenueLeadType, Priority, SalesSegment } from "../types";
+import type { BusinessUnit, ClientDraft, ClientOption, CurrentUser, FunnelStage, LeadSource, LeadTemperature, LossReason, OfficialSalesSegment, Opportunity, OptionLists, PredictableRevenueLeadType, Priority, SalesSegment } from "../types";
 import { todayIso } from "../utils/metrics";
 
 interface AddOpportunityFormProps {
@@ -10,9 +10,9 @@ interface AddOpportunityFormProps {
   onSubmit: (opportunity: Opportunity) => void;
   onCancel: () => void;
   optionLists: OptionLists;
-  onAddOption: (type: keyof OptionLists, name: string, segment?: SalesSegment) => Promise<void>;
+  onAddOption: (type: keyof OptionLists, name: string, segment?: OfficialSalesSegment) => Promise<void>;
   onAddClient: (client: ClientDraft) => Promise<ClientOption>;
-  onDeleteOption: (type: keyof OptionLists, name: string, segment?: SalesSegment) => Promise<void>;
+  onDeleteOption: (type: keyof OptionLists, name: string, segment?: OfficialSalesSegment) => Promise<void>;
   currentUser: CurrentUser;
   selectedBusinessUnit: BusinessUnit;
 }
@@ -34,8 +34,8 @@ export function AddOpportunityForm({
   selectedBusinessUnit,
 }: AddOpportunityFormProps) {
   const selectedBusinessUnitLabel = BUSINESS_UNITS.find((unit) => unit.id === selectedBusinessUnit)?.label ?? selectedBusinessUnit;
-  const [selectedSegment, setSelectedSegment] = useState<SalesSegment>(
-    initial?.segment ?? (optionLists.segments[0] as SalesSegment) ?? "Projetos",
+  const [selectedSegment, setSelectedSegment] = useState<OfficialSalesSegment>(
+    normalizeOfficialSegment(initial?.segment) ?? optionLists.segments[0] ?? "Projetos",
   );
   const segmentServices = optionLists.servicesBySegment[selectedSegment] ?? [];
 
@@ -106,7 +106,7 @@ export function AddOpportunityForm({
           label="Segmento"
           name="segment"
           value={selectedSegment}
-          onChange={(event) => setSelectedSegment(event.target.value as SalesSegment)}
+          onChange={(event) => setSelectedSegment(event.target.value as OfficialSalesSegment)}
           options={optionLists.segments}
         />
         <ManagedSelect
@@ -316,6 +316,17 @@ function ClientSelect({
 
 function findClientIdByName(options: ClientOption[], clientName?: string) {
   return options.find((option) => option.displayName === clientName || option.legalName === clientName)?.id;
+}
+
+function normalizeOfficialSegment(segment?: SalesSegment): OfficialSalesSegment | undefined {
+  if (!segment) return undefined;
+  if (["Serviços Portuários", "Serviços Marítimos", "Freight Forwarder", "Projetos"].includes(segment)) {
+    return segment as OfficialSalesSegment;
+  }
+  if (["Portos e Terminais"].includes(segment)) return "Serviços Portuários";
+  if (["Óleo e Gás", "Navegação", "Energia"].includes(segment)) return "Serviços Marítimos";
+  if (segment === "Logística") return "Freight Forwarder";
+  return "Projetos";
 }
 
 function ClientField({

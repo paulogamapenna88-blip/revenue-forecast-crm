@@ -1,6 +1,8 @@
-import type { BusinessUnit, Opportunity } from "../types";
+import type { BusinessUnit, Opportunity, SalesSegment } from "../types";
 
-const rawMockOpportunities: Omit<Opportunity, "businessUnit">[] = [
+type RawMockOpportunity = Omit<Opportunity, "businessUnit" | "segment"> & { segment: string };
+
+const rawMockOpportunities: RawMockOpportunity[] = [
   {
     id: "opp-001",
     clientName: "Atlas Foods",
@@ -764,9 +766,24 @@ const rawMockOpportunities: Omit<Opportunity, "businessUnit">[] = [
 
 export const mockOpportunities: Opportunity[] = rawMockOpportunities.map((opportunity, index) => ({
   ...opportunity,
+  segment: normalizeMockSegment(opportunity.segment),
   businessUnit: businessUnitForMock(index),
 }));
 
 function businessUnitForMock(index: number): BusinessUnit {
   return index % 2 === 0 ? "freight_projects" : "maritime_port";
+}
+
+function normalizeMockSegment(segment: string): SalesSegment {
+  const normalized = segment.trim().toLowerCase();
+  if (["portos e terminais", "serviços portuários", "apoio portuário"].includes(normalized)) {
+    return "Serviços Portuários";
+  }
+  if (["serviços marítimos", "navegação", "óleo e gás", "energia"].includes(normalized)) {
+    return "Serviços Marítimos";
+  }
+  if (["freight forwarder", "logística", "logistica"].includes(normalized)) {
+    return "Freight Forwarder";
+  }
+  return "Projetos";
 }
