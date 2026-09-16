@@ -137,6 +137,11 @@ function App() {
     setSelectedBusinessUnit(DEFAULT_BUSINESS_UNIT);
   }
 
+  function handleBusinessUnitChange(businessUnit: BusinessUnit) {
+    setSelectedBusinessUnit(businessUnit);
+    setFilters((current) => ({ ...current, segment: "", service: "" }));
+  }
+
   function canEditOpportunity(opportunity: Opportunity) {
     if (!currentUser) return false;
     const canAccessBusinessUnit = currentUser.allowedBusinessUnits.includes(opportunity.businessUnit);
@@ -239,7 +244,7 @@ function App() {
         storageMode={isSupabaseConfigured ? "cloud" : "local"}
         currentUser={currentUser!}
         selectedBusinessUnit={selectedBusinessUnit}
-        onBusinessUnitChange={setSelectedBusinessUnit}
+        onBusinessUnitChange={handleBusinessUnitChange}
         onSignOut={handleSignOut}
       />
       <DashboardMetrics
@@ -247,7 +252,13 @@ function App() {
         selectedMonth={selectedMonth}
         onMonthChange={setSelectedMonth}
       />
-      <FiltersBar filters={filters} onChange={setFilters} optionLists={optionLists} currentUser={currentUser!} />
+      <FiltersBar
+        filters={filters}
+        onChange={setFilters}
+        optionLists={optionLists}
+        currentUser={currentUser!}
+        selectedBusinessUnit={selectedBusinessUnit}
+      />
       <FunnelBoard
         opportunities={boardOpportunities}
           onOpen={(opportunity) => {

@@ -1,4 +1,12 @@
-import { BUSINESS_UNITS, DEFAULT_BUSINESS_UNIT, DEFAULT_SEGMENTS, DEFAULT_SERVICES_BY_SEGMENT, DEFAULT_SELLERS, LEGACY_SELLER_MAP } from "../constants";
+import {
+  BUSINESS_UNIT_SEGMENTS,
+  BUSINESS_UNITS,
+  DEFAULT_BUSINESS_UNIT,
+  DEFAULT_SEGMENTS,
+  DEFAULT_SERVICES_BY_SEGMENT,
+  DEFAULT_SELLERS,
+  LEGACY_SELLER_MAP,
+} from "../constants";
 import { mockOpportunities } from "../data/mockData";
 import type { ClientDraft, ClientOption, CurrentUser, FunnelStage, OfficialSalesSegment, Opportunity, OpportunityHistory, OptionLists, SalesSegment, UserRole } from "../types";
 
@@ -582,11 +590,12 @@ function toSupabaseClient(client: ClientDraft): SupabaseClient {
 }
 
 function normalizeOpportunity(opportunity: Opportunity): Opportunity {
+  const segment = normalizeSegment(opportunity.segment);
   return {
     ...opportunity,
-    businessUnit: normalizeBusinessUnit(opportunity.businessUnit),
+    businessUnit: businessUnitForSegment(segment),
     seller: LEGACY_SELLER_MAP[opportunity.seller] ?? opportunity.seller,
-    segment: normalizeSegment(opportunity.segment),
+    segment,
     service: opportunity.service || "Não informado",
     nextActionDate: opportunity.nextActionDate || opportunity.lastInteractionAt,
   };
@@ -594,6 +603,10 @@ function normalizeOpportunity(opportunity: Opportunity): Opportunity {
 
 function normalizeBusinessUnit(value?: string): Opportunity["businessUnit"] {
   return BUSINESS_UNITS.some((unit) => unit.id === value) ? (value as Opportunity["businessUnit"]) : DEFAULT_BUSINESS_UNIT;
+}
+
+function businessUnitForSegment(segment: OfficialSalesSegment): Opportunity["businessUnit"] {
+  return BUSINESS_UNIT_SEGMENTS.maritime_port.includes(segment) ? "maritime_port" : "freight_projects";
 }
 
 function normalizeAllowedBusinessUnits(

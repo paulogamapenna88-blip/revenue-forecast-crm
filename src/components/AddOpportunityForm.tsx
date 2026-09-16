@@ -1,7 +1,7 @@
 import { Save } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { BUSINESS_UNITS, FUNNEL_STAGES, LOSS_REASONS } from "../constants";
+import { BUSINESS_UNIT_SEGMENTS, BUSINESS_UNITS, FUNNEL_STAGES, LOSS_REASONS } from "../constants";
 import type { BusinessUnit, ClientDraft, ClientOption, CurrentUser, FunnelStage, LeadSource, LeadTemperature, LossReason, OfficialSalesSegment, Opportunity, OptionLists, PredictableRevenueLeadType, Priority, SalesSegment } from "../types";
 import { todayIso } from "../utils/metrics";
 
@@ -34,10 +34,18 @@ export function AddOpportunityForm({
   selectedBusinessUnit,
 }: AddOpportunityFormProps) {
   const selectedBusinessUnitLabel = BUSINESS_UNITS.find((unit) => unit.id === selectedBusinessUnit)?.label ?? selectedBusinessUnit;
+  const availableSegments = BUSINESS_UNIT_SEGMENTS[selectedBusinessUnit];
   const [selectedSegment, setSelectedSegment] = useState<OfficialSalesSegment>(
-    normalizeOfficialSegment(initial?.segment) ?? optionLists.segments[0] ?? "Projetos",
+    normalizeSegmentForBusinessUnit(initial?.segment, selectedBusinessUnit) ?? availableSegments[0],
   );
   const segmentServices = optionLists.servicesBySegment[selectedSegment] ?? [];
+
+  useEffect(() => {
+    setSelectedSegment((current) => {
+      if (availableSegments.includes(current)) return current;
+      return normalizeSegmentForBusinessUnit(initial?.segment, selectedBusinessUnit) ?? availableSegments[0];
+    });
+  }, [availableSegments, initial?.segment, selectedBusinessUnit]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -107,7 +115,7 @@ export function AddOpportunityForm({
           name="segment"
           value={selectedSegment}
           onChange={(event) => setSelectedSegment(event.target.value as OfficialSalesSegment)}
-          options={optionLists.segments}
+          options={availableSegments}
         />
         <ManagedSelect
           label="Serviço"
@@ -327,6 +335,12 @@ function normalizeOfficialSegment(segment?: SalesSegment): OfficialSalesSegment 
   if (["Óleo e Gás", "Navegação", "Energia"].includes(segment)) return "Serviços Marítimos";
   if (segment === "Logística") return "Freight Forwarder";
   return "Projetos";
+}
+
+function normalizeSegmentForBusinessUnit(segment: SalesSegment | undefined, businessUnit: BusinessUnit): OfficialSalesSegment | undefined {
+  const normalized = normalizeOfficialSegment(segment);
+  if (!normalized) return undefined;
+  return BUSINESS_UNIT_SEGMENTS[businessUnit].includes(normalized) ? normalized : undefined;
 }
 
 function ClientField({

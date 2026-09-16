@@ -1,20 +1,22 @@
 import { Search } from "lucide-react";
-import { FUNNEL_STAGES } from "../constants";
-import type { CurrentUser, Filters, OfficialSalesSegment, OptionLists } from "../types";
+import { BUSINESS_UNIT_SEGMENTS, FUNNEL_STAGES } from "../constants";
+import type { BusinessUnit, CurrentUser, Filters, OfficialSalesSegment, OptionLists } from "../types";
 
 interface FiltersBarProps {
   filters: Filters;
   onChange: (filters: Filters) => void;
   optionLists: OptionLists;
   currentUser: CurrentUser;
+  selectedBusinessUnit: BusinessUnit;
 }
 
-export function FiltersBar({ filters, onChange, optionLists, currentUser }: FiltersBarProps) {
+export function FiltersBar({ filters, onChange, optionLists, currentUser, selectedBusinessUnit }: FiltersBarProps) {
   const isManager = currentUser.role === "manager" || currentUser.role === "admin";
   const sellerOptions = isManager ? optionLists.sellers : [currentUser.sellerName];
+  const segmentOptions = BUSINESS_UNIT_SEGMENTS[selectedBusinessUnit];
   const serviceOptions = filters.segment
     ? optionLists.servicesBySegment[filters.segment as OfficialSalesSegment] ?? optionLists.services
-    : optionLists.services;
+    : segmentOptions.flatMap((segment) => optionLists.servicesBySegment[segment] ?? []);
 
   return (
     <section className="mx-auto max-w-[1800px] px-4 sm:px-6">
@@ -59,7 +61,7 @@ export function FiltersBar({ filters, onChange, optionLists, currentUser }: Filt
           className="h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-slate-500 focus:bg-white"
         >
           <option value="">Todos os segmentos</option>
-          {optionLists.segments.map((segment) => (
+          {segmentOptions.map((segment) => (
             <option key={segment} value={segment}>
               {segment}
             </option>

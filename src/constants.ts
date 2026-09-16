@@ -43,6 +43,11 @@ export const DEFAULT_SEGMENTS: OfficialSalesSegment[] = [
   "Projetos",
 ];
 
+export const BUSINESS_UNIT_SEGMENTS: Record<BusinessUnit, OfficialSalesSegment[]> = {
+  freight_projects: ["Freight Forwarder", "Projetos"],
+  maritime_port: ["Serviços Portuários", "Serviços Marítimos"],
+};
+
 export const DEFAULT_SERVICES_BY_SEGMENT: Record<OfficialSalesSegment, string[]> = {
   "Serviços Portuários": ["Apoio Portuário", "Operação Portuária", "Armazenagem", "Inspeção em Terminal"],
   "Serviços Marítimos": ["Agenciamento Marítimo", "Consultoria Operacional", "Inspeção Técnica", "Apoio Marítimo"],
